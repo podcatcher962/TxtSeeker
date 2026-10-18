@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TxtSeeker — TXT 全文搜索定位 · TXT Full-Text Search &amp; Locate</title>
+<link rel="icon" href="data:,">
+<style>
+  :root{
+    --bg:#2b2f36; --card:#343a44; --card2:#3c434f; --line:#4a5260;
+    --tx:#e8ebf0; --tx2:#aeb6c2; --acc:#4da3ff; --acc2:#37c48e; --warn:#ffb020;
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  body{
+    background:var(--bg); color:var(--tx);
+    font-family:"Segoe UI","Microsoft YaHei",system-ui,sans-serif;
+    min-height:100vh; display:flex; flex-direction:column; align-items:center;
+    padding:48px 20px 24px;
+  }
+  .wrap{width:100%; max-width:760px}
+  .hero{text-align:center; margin-bottom:28px}
+  .hero .logo{font-size:44px; font-weight:700; letter-spacing:.5px}
+  .hero .logo b{color:var(--acc)}
+  .hero .sub{margin-top:8px; color:var(--tx2); font-size:15px; line-height:1.7}
+  .hero .sub en{display:block; font-size:13px; opacity:.85; margin-top:2px}
+  .btns{display:flex; gap:14px; justify-content:center; flex-wrap:wrap; margin:26px 0 8px}
+  .btn{
+    display:inline-block; padding:13px 30px; border-radius:10px; text-decoration:none;
+    font-size:16px; font-weight:600; transition:transform .12s, box-shadow .12s;
+  }
+  .btn:hover{transform:translateY(-2px)}
+  .btn-main{background:var(--acc); color:#0d2136; box-shadow:0 4px 18px rgba(77,163,255,.35)}
+  .btn-sub{background:var(--card2); color:var(--tx); border:1px solid var(--line)}
+  .btn-sub:hover{border-color:var(--acc)}
+  .card{
+    background:var(--card); border:1px solid var(--line); border-radius:14px;
+    padding:22px 24px; margin-top:18px;
+  }
+  .card h2{font-size:17px; margin-bottom:12px; color:var(--tx)}
+  .card h2 .en{color:var(--tx2); font-size:13px; font-weight:400; margin-left:8px}
+  .feats{display:grid; grid-template-columns:1fr 1fr; gap:10px 22px}
+  @media (max-width:640px){ .feats{grid-template-columns:1fr} }
+  .feat{display:flex; gap:10px; align-items:flex-start; font-size:14px; line-height:1.55}
+  .feat .ic{flex:none; width:22px; text-align:center}
+  .feats-en{margin-top:10px; padding-top:10px; border-top:1px dashed var(--line);
+    color:var(--tx2); font-size:12.5px; line-height:1.8}
+  .note{font-size:13px; color:var(--tx2); line-height:1.8}
+  .note b{color:var(--tx)}
+  .pill{display:inline-block; background:var(--card2); border:1px solid var(--line);
+    border-radius:99px; padding:2px 12px; font-size:12px; color:var(--tx2); margin:0 6px 6px 0}
+  .foot{margin-top:26px; text-align:center; color:var(--tx2); font-size:12.5px; line-height:1.9}
+  .foot .sig{color:var(--tx)}
+  a{color:var(--acc)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="hero">
+    <div class="logo">Txt<b>Seeker</b></div>
+    <div class="sub">
+      在成千上万个 TXT 里秒级定位含有指定文字的文件——支持整目录递归、关键词高亮、直接打开所在目录
+      <en>Instantly locate files containing your keywords across thousands of TXTs — recursive folders, keyword highlighting, reveal in Explorer</en>
+    </div>
+    <div class="btns">
+      <a class="btn btn-main" href="./TxtSeeker.html">进入应用 · Enter App</a>
+      <a class="btn btn-sub" href="https://github.com/podcatcher962/TxtSeeker/releases/latest" target="_blank" rel="noopener">下载 Windows exe</a>
+    </div>
+    <div>
+      <span class="pill">v1.3.2</span><span class="pill">单文件 HTML</span><span class="pill">Windows exe</span><span class="pill">中 / EN</span><span class="pill">纯本地</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>功能特性 <span class="en">Features</span></h2>
+    <div class="feats">
+      <div class="feat"><span class="ic">🔍</span><span>全文搜索：关键词 / 短语 / 正则，AND / OR 模式，区分大小写可选</span></div>
+      <div class="feat"><span class="ic">📁</span><span>整目录递归（含子目录），文件名匹配，txt / md / csv / log 等 17 种文本格式</span></div>
+      <div class="feat"><span class="ic">💡</span><span>命中行预览 + 关键词高亮，UTF-8 / GB18030 编码自动识别</span></div>
+      <div class="feat"><span class="ic">📂</span><span>一键「打开所在目录」定位文件，或勾选后批量另存</span></div>
+      <div class="feat"><span class="ic">🌐</span><span>标题栏「中 / EN」滑块，不依赖文字认知，选择跨重启记忆</span></div>
+      <div class="feat"><span class="ic">🔒</span><span>纯本地运行：文件内容不出本机，桌面版走系统回环 + 原生对话框</span></div>
+    </div>
+    <div class="feats-en">
+      Full-text search (keywords / phrases / regex, AND/OR, case option) · recursive folder scan with 17 text formats · hit-line preview with highlighting · UTF-8 &amp; GB18030 auto-detection · reveal in Explorer / batch save selected · bilingual 中/EN switch with persistence · fully local — your files never leave your machine
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>两种用法 <span class="en">Two ways to use</span></h2>
+    <div class="note">
+      <b>① 在线版（本页「进入应用」）：</b>单文件 HTML，浏览器直接打开即用，可勾选另存命中文件。<br>
+      <b>② Windows 桌面版（下载 exe）：</b>带原生文件夹选择器、最近目录记忆、「打开所在目录」定位、导出摘录——功能最全。<br>
+      <span style="opacity:.8">Online version: single-file HTML, runs in any browser. Desktop exe: native folder picker, recent folders, reveal-in-Explorer, export excerpts.</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>隐私与安全 <span class="en">Privacy &amp; Safety</span></h2>
+    <div class="note">
+      本工具<strong>不联网、不上传、不统计</strong>任何文件内容：桌面版的服务只绑定 127.0.0.1 本机回环，扫描与搜索全部在本地完成；在线版同样只在你自己的浏览器里运行。无账号、无遥测。<br>
+      <span style="opacity:.8">No network, no upload, no telemetry. The desktop server binds to 127.0.0.1 loopback only; all scanning happens locally. The online version runs entirely in your own browser.</span>
+    </div>
+  </div>
+
+  <div class="foot">
+    <div class="sig">© 永远的兰兰 · Lanlan Eternal</div>
+    <div>TxtSeeker v1.3.2 · <a href="https://github.com/podcatcher962/TxtSeeker" target="_blank" rel="noopener">GitHub 源码 / Source</a> · MIT License</div>
+  </div>
+
+</div>
+<div id="busuanzi_container_page_pv" style="text-align:center;font-size:12px;color:#8a93a0;margin:20px 0 8px;display:none">👁 本页访问 <span id="busuanzi_value_page_pv"></span> 次<span id="busuanzi_container_site_uv"> · 访客 <span id="busuanzi_value_site_uv"></span> 人</span></div>
+<script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+</body>
+</html>
