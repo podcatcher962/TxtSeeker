@@ -25,7 +25,7 @@ import time
 import urllib.parse
 
 APP = "TxtSeeker"
-VERSION = "1.3.2"
+VERSION = "1.4.0"
 TITLE = "TxtSeeker — TXT 全文搜索定位"
 PAGE_FILE = "TxtSeeker.html"
 PORT_START = 38971
@@ -64,6 +64,25 @@ def save_lang(lang):
             f.write(lang)
     except OSError:
         pass
+
+
+# ------------------------------------------------------------ 页面偏好存储（v1.4）
+# 主题 / 搜索历史 / 检索方案：桌面版由壳落盘，浏览器版走 localStorage。
+# 关键：页面加载期绝不访问 localStorage（会毒死 WebView2 同页 fetch），
+# 因此桌面版统一用 HTTP 存到 appdata_dir()\store\<key>.json。
+STORE_KEYS = ("theme", "history", "schemes")
+STORE_MAX = 512 * 1024
+
+
+def store_dir():
+    return os.path.join(appdata_dir(), "store")
+
+
+def store_path(key):
+    if key not in STORE_KEYS:
+        return None
+    return os.path.join(store_dir(), key + ".json")
+
 
 
 SHELL_TEXT = {
@@ -193,6 +212,9 @@ class PageHandler(http.server.SimpleHTTPRequestHandler):
         elif path == "/api/beacon":
             q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
             self._json({"ok": bool(self.api.beacon(q.get("event", [""])[0]))})
+        elif path == "/api/store":
+            q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            self._json({"value": self.api.get_store(q.get("key", [""])[0])})
         elif path == "/api/_beacons":
             self._json({"beacons": getattr(self.api, "_beacons", [])})
         else:
@@ -234,6 +256,13 @@ class PageHandler(http.server.SimpleHTTPRequestHandler):
             try:
                 data = json.loads(body.decode("utf-8")) if body else {}
                 self._json({"lang": self.api.set_lang(data.get("lang"))})
+            except Exception as e:  # noqa: BLE001
+                self._json({"error": str(e)}, 400)
+        elif path == "/api/store":
+            try:
+                data = json.loads(body.decode("utf-8")) if body else {}
+                ok = self.api.set_store(data.get("key"), data.get("value"))
+                self._json({"ok": bool(ok)})
             except Exception as e:  # noqa: BLE001
                 self._json({"error": str(e)}, 400)
         else:
@@ -506,6 +535,35 @@ class Api:
         except Exception:  # noqa: BLE001
             pass
         return True
+
+    # ---------------- 页面偏好存储（v1.4：主题 / 搜索历史 / 检索方案） ----------------
+    def get_store(self, key):
+        p = store_path(key)
+        if not p:
+            return None
+        try:
+            with open(p, encoding="utf-8") as f:
+                return f.read()
+        except (OSError, ValueError):
+            return None
+
+    def set_store(self, key, value):
+        p = store_path(key)
+        if not p:
+            return False
+        if not isinstance(value, str):
+            value = json.dumps(value, ensure_ascii=False)
+        if len(value.encode("utf-8")) > STORE_MAX:
+            return False
+        try:
+            os.makedirs(store_dir(), exist_ok=True)
+            tmp = p + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                f.write(value)
+            os.replace(tmp, p)
+            return True
+        except OSError:
+            return False
 
     def get_app_info(self):
         return {"app": APP, "version": VERSION, "desktop": True}
@@ -869,6 +927,35 @@ def selftest(out_path):
             chk("API /api/save_text 无窗口时返回 path=null（不弹框）",
                 st == 200 and svj.get("path") is None,
                 f"status={st}, {svj}")
+
+            # ---- v1.4 偏好存储 round-trip（快照 theme，用完还原） ----
+            theme_file = store_path("theme")
+            theme_orig = None
+            try:
+                if os.path.isfile(theme_file):
+                    with open(theme_file, "rb") as f:
+                        theme_orig = f.read()
+            except OSError:
+                theme_orig = None
+            st, _ = jpost("/api/store",
+                          {"key": "theme", "value": "selftest_marker"})
+            st2, gs = jget("/api/store?key=theme")
+            chk("API /api/store 写后可读回",
+                st2 == 200 and (gs or {}).get("value") == "selftest_marker",
+                f"status={st2}, {gs}")
+            st3, gs2 = jget("/api/store?key=../../etc/passwd")
+            chk("API /api/store 拒绝非法 key",
+                st3 == 200 and (gs2 or {}).get("value") is None,
+                f"status={st3}, {gs2}")
+            # 还原
+            try:
+                if theme_orig is not None:
+                    with open(theme_file, "wb") as f:
+                        f.write(theme_orig)
+                elif os.path.isfile(theme_file):
+                    os.remove(theme_file)
+            except OSError:
+                pass
 
             # ---- v1.3 语言 round-trip（快照 lang.txt，用完还原，不污染用户设置） ----
             lang_file = lang_path()
