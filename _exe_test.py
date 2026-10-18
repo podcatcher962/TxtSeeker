@@ -364,6 +364,44 @@ finally:
     except OSError:
         pass
 
+# ---------- 4.5) v1.4 偏好存储（/api/store） ----------
+STORE_FILE = os.path.join(os.environ["LOCALAPPDATA"], APP, "store", "theme.json")
+theme_orig = None
+try:
+    if os.path.isfile(STORE_FILE):
+        with open(STORE_FILE, "rb") as f:
+            theme_orig = f.read()
+except OSError:
+    theme_orig = None
+try:
+    req = urllib.request.Request(
+        f"http://127.0.0.1:{rt['port']}/api/store",
+        data=json.dumps({"key": "theme", "value": "exe_probe"}).encode("utf-8"),
+        method="POST", headers={"Content-Type": "application/json"})
+    with OP.open(req, timeout=10) as r:
+        ok_w = json.loads(r.read().decode("utf-8")).get("ok") is True
+    with OP.open(f"http://127.0.0.1:{rt['port']}/api/store?key=theme",
+                 timeout=10) as r:
+        v = json.loads(r.read().decode("utf-8")).get("value")
+    chk("API /api/store 写后可读回（v1.4）", ok_w and v == "exe_probe",
+        f"write={ok_w}, read={v}")
+    with OP.open(f"http://127.0.0.1:{rt['port']}/api/store?key=bad",
+                 timeout=10) as r:
+        v2 = json.loads(r.read().decode("utf-8")).get("value")
+    chk("API /api/store 非法 key 返回 null", v2 is None, str(v2))
+except Exception as e:  # noqa: BLE001
+    chk("API /api/store round-trip", False, repr(e))
+finally:
+    try:
+        if theme_orig is None:
+            if os.path.isfile(STORE_FILE):
+                os.remove(STORE_FILE)
+        else:
+            with open(STORE_FILE, "wb") as f:
+                f.write(theme_orig)
+    except OSError:
+        pass
+
 # ---------- 5) 单实例 ----------
 # 轮询而非一次性检查：onefile 冷启动解压有时 >5s，曾偶发误报（2026-10-18 0902 构建）
 p2 = subprocess.Popen([EXE], cwd=os.path.dirname(EXE))
