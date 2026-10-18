@@ -3,7 +3,7 @@
 > 在堆积如山的 TXT 文件里，一眼找到含有那段文字的文件。
 > **纯本地运行，零上传，零依赖联网。**
 >
-> © 永远的兰兰 / Lanlan Eternal · v1.3.2
+> © 永远的兰兰 / Lanlan Eternal · v1.4.0
 
 ---
 
@@ -35,7 +35,13 @@
 - 💾 **另存选中文件 / 另存全部命中**（桌面版整批复制；在线版逐份下载）
 - 📄 打开选中文件（默认程序）/ 定位所在文件夹
 - 🧾 导出结果清单（.txt）/ 导出命中内容摘录（.md）
+- 📊 **导出结果表格（.csv）**：文件名、路径、命中数、编码、大小、修改时间，Excel / WPS 双击即开（UTF-8 BOM，中文不乱码）
 - 🕘 最近目录记忆（桌面版）
+
+**效率（v1.4 新增）**
+- ⏱️ **搜索历史**：关键词框右侧 🕘 记住最近 10 次搜索，点击即回填并重搜（相同搜索自动去重）
+- 💼 **检索方案**：把「关键词 + 模式 + 范围 + 扩展名 + 大小写 + 子目录」整套存成命名方案，下次一键套用；最多 20 套
+- 🎨 **深浅主题**：深色 / 浅色 / 跟随系统，浅色是灰底不刺眼（不是刺眼纯白），选择自动记忆
 
 **体验**
 - 🌗 中英双语：标题栏「中 / EN」滑块一键切换，选择自动记忆（英语用户无需先认出"语言"二字）
@@ -111,7 +117,7 @@ node _browser_test.mjs    # 19 项：在线版（纯浏览器）保存/打开链
 > Find every TXT file containing that phrase — across thousands of files, in seconds.
 > **100% local. Nothing ever leaves your machine.**
 >
-> © 永远的兰兰 / Lanlan Eternal · v1.3.2
+> © 永远的兰兰 / Lanlan Eternal · v1.4.0
 
 ### Three ways to run
 
@@ -133,7 +139,15 @@ All three share the same UI and engine; the desktop build adds whole-folder load
 - Row checkboxes / select-all → **Save Selected / Save All Hits**
 - Open file with default app / reveal in folder
 - Export result list (.txt) / hit excerpts (.md)
+- **Export results table (.csv)** — name, path, hits, encoding, size, mtime; opens straight in Excel / WPS (UTF-8 BOM, Chinese-safe)
 - Recent-folders memory (desktop)
+
+### New in v1.4
+- **Search history** — the 🕘 button next to the keyword box keeps your last 10 searches; one click refills and re-searches (identical searches are de-duplicated)
+- **Search schemes** — store keywords + mode + scope + extension + case + subfolder as a named scheme, then apply it in one click (up to 20)
+- **Dark / Light / Follow-system theme** — the light theme is a soft grey (not glaring white), and your choice is remembered
+
+### Basics
 - **Bilingual UI (中 / EN)** — one-click toggle in the title bar, choice remembered
 - Drag & drop files or folders
 - Single file, portable, no installer, no background service
