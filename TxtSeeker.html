@@ -1,0 +1,1734 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TxtSeeker — TXT 全文搜索定位</title>
+<style>
+  :root{
+    --bg:#2b2b2b; --panel:#383838; --panel2:#3f3f3f; --entry:#1e1e1e;
+    --fg:#e8e8e8; --dim:#9a9a9a; --line:#4a4a4a;
+    --accent:#ff8c1a; --accent-h:#ffa54d; --blue:#3aa6ff;
+    --hit:#7a5c00; --sel:#0f4c75; --red:#e05252;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{
+    background:var(--bg); color:var(--fg);
+    font:14px/1.5 "Microsoft YaHei UI","Segoe UI",system-ui,sans-serif;
+    display:flex; flex-direction:column; overflow:hidden;
+  }
+  /* ---------- 顶部菜单栏 ---------- */
+  .menubar{display:flex; align-items:center; gap:2px; background:var(--panel);
+    padding:0 8px; height:34px; flex:none; border-bottom:1px solid var(--line);}
+  .menubar .logo{font-weight:700; color:var(--accent); margin-right:14px;
+    font-size:14px; letter-spacing:.5px; white-space:nowrap;}
+  .menu{position:relative;}
+  .menu>button{background:none; border:none; color:var(--fg); font-size:13px;
+    padding:6px 12px; cursor:pointer; border-radius:4px; font-family:inherit;}
+  .menu>button:hover{background:var(--panel2);}
+  .menu .dropdown{display:none; position:absolute; top:100%; left:0; min-width:190px;
+    background:var(--panel); border:1px solid var(--line); border-radius:6px;
+    box-shadow:0 6px 20px rgba(0,0,0,.5); z-index:100; padding:4px 0;}
+  .menu.open .dropdown{display:block;}
+  .dropdown button{display:block; width:100%; text-align:left; background:none;
+    border:none; color:var(--fg); font-size:13px; padding:7px 16px; cursor:pointer;
+    font-family:inherit;}
+  .dropdown button:hover{background:var(--accent); color:#1a1a1a;}
+  .dropdown .sep{height:1px; background:var(--line); margin:4px 0;}
+  /* ---------- 工具区 ---------- */
+  .toolbar{flex:none; padding:10px 12px 8px; border-bottom:1px solid var(--line);}
+  .row{display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
+  .row + .row{margin-top:8px;}
+  .row label{color:var(--dim); white-space:nowrap;}
+  input[type=text]{
+    background:var(--entry); border:1px solid var(--line); color:var(--fg);
+    border-radius:6px; padding:7px 10px; font-size:13px; outline:none;
+    font-family:inherit;}
+  input[type=text]:focus{border-color:var(--accent);}
+  #dirPath{flex:1; min-width:220px; font-family:Consolas,monospace; font-size:12px;}
+  #kw{flex:1; min-width:240px;}
+  .btn{background:var(--panel); border:1px solid var(--line); color:var(--fg);
+    border-radius:6px; padding:7px 14px; font-size:13px; cursor:pointer;
+    font-family:inherit; white-space:nowrap;}
+  .btn:hover{background:var(--panel2);}
+  .btn.primary{background:var(--accent); border-color:var(--accent);
+    color:#1a1a1a; font-weight:700;}
+  .btn.primary:hover{background:var(--accent-h);}
+  .btn:disabled{opacity:.45; cursor:not-allowed;}
+  select{background:var(--entry); border:1px solid var(--line); color:var(--fg);
+    border-radius:6px; padding:7px 8px; font-size:13px; font-family:inherit;
+    outline:none;}
+  .chk{display:flex; align-items:center; gap:5px; color:var(--fg);
+    font-size:13px; cursor:pointer; user-select:none;}
+  .chk input{accent-color:var(--accent); cursor:pointer;}
+  .hint{color:var(--dim); font-size:12px;}
+  .dropzone{
+    flex:none; margin:10px 12px 0; border:1.5px dashed var(--line);
+    border-radius:10px; padding:16px; text-align:center; color:var(--dim);
+    font-size:13px; transition:.15s; background:rgba(255,255,255,.02);}
+  .dropzone.over{border-color:var(--accent); color:var(--accent);
+    background:rgba(255,140,26,.07);}
+  .dropzone b{color:var(--fg);}
+  /* ---------- 进度 ---------- */
+  .progress{flex:none; padding:8px 12px 0; display:none;}
+  .progress.show{display:block;}
+  .bar{height:6px; background:var(--entry); border-radius:3px; overflow:hidden;}
+  .bar>i{display:block; height:100%; width:0; background:var(--accent);
+    border-radius:3px; transition:width .12s;}
+  /* ---------- 主体 ---------- */
+  .main{flex:1; display:flex; flex-direction:column; min-height:0; padding:10px 12px 0;}
+  .tablewrap{flex:1.15; min-height:180px; overflow:auto; border:1px solid var(--line);
+    border-radius:8px; background:var(--panel);}
+  table{width:100%; border-collapse:collapse; font-size:13px;}
+  thead th{position:sticky; top:0; background:var(--bg); color:var(--dim);
+    text-align:left; padding:8px 10px; font-weight:400; font-size:12px;
+    border-bottom:1px solid var(--line); white-space:nowrap; z-index:2;}
+  tbody td{padding:7px 10px; border-bottom:1px solid rgba(255,255,255,.05);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:0;}
+  tbody tr{cursor:pointer;}
+  tbody tr:hover{background:rgba(255,255,255,.05);}
+  tbody tr.active{background:var(--sel);}
+  td.c{text-align:center;} td.r{text-align:right;}
+  td.name{font-weight:600; color:var(--fg);}
+  td.hits{color:var(--accent); font-weight:700;}
+  td.dir{color:var(--dim); font-family:Consolas,monospace; font-size:12px;}
+  th.chkcol{width:36px; text-align:center;}
+  td.chkcol{text-align:center; width:36px;}
+  input[type=checkbox].rowchk{accent-color:var(--accent); cursor:pointer;
+    width:15px; height:15px; vertical-align:middle;}
+  input[type=checkbox]#chkAll{accent-color:var(--accent); cursor:pointer;
+    width:15px; height:15px; vertical-align:middle;}
+  .deskbar{flex:none; display:none; gap:8px; padding:8px 12px 0; flex-wrap:wrap;}
+  body.desktop .deskbar{display:flex;}
+  .empty{padding:40px 20px; text-align:center; color:var(--dim); font-size:13px;}
+  /* ---------- 预览 ---------- */
+  .previewwrap{flex:1; min-height:120px; margin:10px 0 0; display:flex;
+    flex-direction:column; border:1px solid var(--line); border-radius:8px;
+    background:var(--panel); overflow:hidden;}
+  .previewwrap .ph{flex:none; padding:6px 12px; color:var(--dim); font-size:12px;
+    border-bottom:1px solid var(--line); display:flex; justify-content:space-between; gap:10px;}
+  .previewwrap .ph .path{font-family:Consolas,monospace; overflow:hidden;
+    text-overflow:ellipsis; white-space:nowrap;}
+  #preview{flex:1; overflow:auto; padding:8px 0; font-family:Consolas,"Microsoft YaHei UI",monospace;
+    font-size:12.5px; line-height:1.7;}
+  #preview .ln{color:var(--blue); display:inline-block; width:64px;
+    padding-right:12px; text-align:right; user-select:none; flex:none;}
+  #preview .pl{display:flex; padding:0 14px 0 0; white-space:pre-wrap;
+    word-break:break-all;}
+  #preview .pl:hover{background:rgba(255,255,255,.04);}
+  #preview mark{background:var(--hit); color:#fff; border-radius:2px; padding:0 1px;}
+  #preview .more{color:var(--dim); padding:4px 14px 8px 78px;}
+  /* ---------- 状态栏 ---------- */
+  .statusbar{flex:none; display:flex; align-items:center; gap:14px;
+    padding:6px 14px; border-top:1px solid var(--line); color:var(--dim);
+    font-size:12px; background:var(--panel);}
+  .statusbar .sp{flex:1;}
+  .statusbar b{color:var(--fg); font-weight:600;}
+  ::-webkit-scrollbar{width:10px; height:10px;}
+  ::-webkit-scrollbar-thumb{background:#555; border-radius:5px;
+    border:2px solid var(--panel);}
+  ::-webkit-scrollbar-track{background:transparent;}
+  @media (max-width:760px){
+    #dirPath,#kw{min-width:0;}
+    tbody td.dir{display:none;} thead th:nth-child(5){display:none;}
+  }
+  /* ---------- v1.2 可排序表头 ---------- */
+  thead th.sortable{cursor:pointer; user-select:none;}
+  thead th.sortable:hover{color:var(--accent);}
+  thead th.sortable::after{content:" ↕"; opacity:.35; font-size:11px;}
+  thead th.sortable.active.asc::after{content:" ▲"; opacity:1; color:var(--accent);}
+  thead th.sortable.active.desc::after{content:" ▼"; opacity:1; color:var(--accent);}
+  /* ---------- v1.2 正则错误提示 ---------- */
+  .reerr{color:var(--red); font-size:12px; white-space:nowrap;}
+  /* ---------- v1.2 文件名命中信息卡 ---------- */
+  #preview .fcard{padding:12px 16px;}
+  #preview .fcard .fc-t{font-size:14px; font-weight:700; color:var(--fg);
+    margin-bottom:6px;}
+  #preview .fcard .fc-p{color:var(--dim); font-size:12.5px; line-height:1.9;
+    word-break:break-all;}
+  #preview .fcard .fc-p b{color:var(--accent);}
+  /* ---------- v1.2 最近目录 ---------- */
+  .dropdown .mgroup{padding:5px 16px 3px; font-size:12px; color:var(--dim);
+    user-select:none;}
+  #recentList button{max-width:380px; overflow:hidden; text-overflow:ellipsis;
+    white-space:nowrap; font-family:Consolas,monospace; font-size:12px;}
+  /* ---------- v1.3.1 标题栏语言分段滑块（不依赖文字认知：中 / EN） ---------- */
+  .langseg{position:relative; display:flex; margin-left:12px; width:76px; height:26px;
+    background:var(--entry); border:1px solid var(--line); border-radius:13px;
+    overflow:hidden; flex:none;}
+  .langseg .thumb{position:absolute; top:0; left:0; width:50%; height:100%;
+    background:var(--accent); border-radius:13px; transition:transform .18s ease;}
+  .langseg.en .thumb{transform:translateX(100%);}
+  .langseg button{flex:1; z-index:1; background:none; border:none; color:var(--dim);
+    font-size:12px; font-weight:700; cursor:pointer; padding:0; font-family:inherit;}
+  .langseg button.on{color:#1a1a1a;}
+  @media (max-width:760px){
+    .langseg{width:64px; height:24px; margin-left:6px;}
+    .langseg button{font-size:11px;}
+  }
+</style>
+</head>
+<body>
+
+<!-- ================= 菜单栏 ================= -->
+<div class="menubar">
+  <span class="logo">📄 TxtSeeker</span>
+  <!-- v1.3.1：语言切换放标题栏，做成「中 / EN」分段滑块——不依赖文字认知，
+       英语用户不需要先认出"语言"二字，看到 EN 就知道点哪里 -->
+  <div class="langseg" id="langSeg" data-i18n-title="langseg.tip" title="界面语言 / UI language">
+    <span class="thumb"></span>
+    <button id="segZh" onclick="setLang('zh')">中</button>
+    <button id="segEn" onclick="setLang('en')">EN</button>
+  </div>
+  <div class="menu" id="menuFile">
+    <button onclick="toggleMenu('menuFile')" data-i18n="menu.file">文件</button>
+    <div class="dropdown">
+      <div id="recentBox" style="display:none">
+        <div class="mgroup" data-i18n="menu.recent">最近目录</div>
+        <div id="recentList"></div>
+        <div class="sep"></div>
+      </div>
+      <button onclick="pickDir()" data-i18n="menu.openDir">打开目录…</button>
+      <button onclick="exportResults()" data-i18n="menu.exportList">导出结果清单(.txt)…</button>
+      <button onclick="exportExcerpt()" data-i18n="menu.exportExcerpt">导出命中内容摘录(.md)…</button>
+      <button onclick="saveSelected()" data-i18n="menu.saveSel">另存选中文件…</button>
+      <button onclick="saveAll()" data-i18n="menu.saveAll">另存全部命中</button>
+      <div class="sep"></div>
+      <button onclick="clearAll()" data-i18n="menu.clear">清空结果</button>
+    </div>
+  </div>
+  <div class="menu" id="menuAct">
+    <button onclick="toggleMenu('menuAct')" data-i18n="menu.ops">操作</button>
+    <div class="dropdown">
+      <button onclick="copyAllPaths()" data-i18n="menu.copyAll">复制全部命中路径</button>
+      <button onclick="copySelPath()" data-i18n="menu.copySel">复制选中文件路径</button>
+      <div class="sep"></div>
+      <button onclick="search()" data-i18n="menu.search">开始搜索</button>
+      <button onclick="stopSearch()" data-i18n="menu.stop">停止搜索</button>
+    </div>
+  </div>
+  <div class="menu" id="menuHelp">
+    <button onclick="toggleMenu('menuHelp')" data-i18n="menu.help">帮助</button>
+    <div class="dropdown">
+      <button onclick="showHelp()" data-i18n="menu.usage">使用说明</button>
+      <button onclick="showDisclaimer()" data-i18n="menu.disclaimer">免责声明</button>
+      <div class="sep"></div>
+      <button onclick="showAbout()" data-i18n="menu.about">关于 TxtSeeker</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= 工具区 ================= -->
+<div class="toolbar">
+  <div class="row">
+    <label data-i18n="tb.dir">目录</label>
+    <input type="text" id="dirPath" data-i18n-ph="tb.dirPh" placeholder="点击「浏览…」选择文件夹，或把文件夹拖到下方虚线框" readonly>
+    <button class="btn" onclick="pickDir()" data-i18n="tb.browse">浏览…</button>
+  </div>
+  <div class="row">
+    <label data-i18n="tb.kw">关键词</label>
+    <input type="text" id="kw" data-i18n-ph="tb.kwPh" placeholder="多个词用空格隔开；英文双引号可包住短语，如：你好 &quot;世界和平&quot;">
+    <label class="chk"><input type="checkbox" id="caseS"> <span data-i18n="tb.caseS">区分大小写</span></label>
+    <label class="chk"><input type="checkbox" id="subdir" checked> <span data-i18n="tb.subdir">包含子目录</span></label>
+    <select id="scope" data-i18n-title="tb.scope" title="搜索范围">
+      <option value="content" data-i18n="tb.scopeContent">搜内容</option>
+      <option value="name" data-i18n="tb.scopeName">搜文件名</option>
+      <option value="both" data-i18n="tb.scopeBoth">内容+文件名</option>
+    </select>
+    <select id="mode" data-i18n-title="tb.mode" title="匹配方式">
+      <option value="AND" data-i18n="tb.modeAnd">全部词(AND)</option>
+      <option value="OR" data-i18n="tb.modeOr">任一词(OR)</option>
+      <option value="regex" data-i18n="tb.modeRegex">正则表达式</option>
+    </select>
+    <select id="extSel">
+      <option value="txt" data-i18n="tb.extTxt">仅 TXT</option>
+      <option value="text" data-i18n="tb.extText">常见文本类型</option>
+    </select>
+    <span class="reerr" id="reErr"></span>
+    <button class="btn primary" id="btnSearch" onclick="search()" data-i18n="tb.searchBtn">🔍 搜索</button>
+    <button class="btn" id="btnStop" onclick="stopSearch()" data-i18n="tb.stopBtn" disabled>■ 停止</button>
+  </div>
+</div>
+
+<div class="dropzone" id="dropzone" data-i18n-html="dz.browser">
+  ⬇️ 把 <b>文件夹</b>（或若干文件）拖到这里，即可加载并搜索 — 全部本地读取，<b>不会上传任何文件</b>
+</div>
+<div class="progress" id="progress"><div class="bar"><i id="barFill"></i></div></div>
+
+<!-- ================= 桌面版操作条（仅 pywebview 壳内显示） ================= -->
+<div class="deskbar" id="deskbar">
+  <button class="btn" id="btnOpenFile" onclick="openSelFile()" data-i18n="dk.openFile">📄 打开选中文件</button>
+  <button class="btn" id="btnOpenFolder" onclick="openFolder()" data-i18n="dk.openFolder">📂 打开所在文件夹</button>
+  <button class="btn" id="btnReveal" onclick="revealFile()" data-i18n="dk.reveal">🎯 在资源管理器中定位</button>
+  <button class="btn primary" id="btnSaveSel" onclick="saveSelected()" data-i18n="dk.saveSel">💾 另存选中文件…</button>
+  <button class="btn" id="btnSaveAll" onclick="saveAll()" data-i18n="dk.saveAll">💾 另存全部命中</button>
+  <span class="hint" id="deskHint"></span>
+</div>
+
+<!-- ================= 结果表 ================= -->
+<div class="main">
+  <div class="tablewrap" id="tablewrap">
+    <table>
+      <thead><tr>
+        <th class="chkcol"><input type="checkbox" id="chkAll" data-i18n-title="th.chkAll" title="全选 / 全不选（Ctrl+A）"></th>
+        <th class="sortable" data-k="name" style="width:20%" data-i18n="th.name">文件名</th>
+        <th class="sortable c" data-k="hits" style="width:9%" data-i18n="th.hits" data-i18n-title="th.hitsTip" title="内容搜索=命中行数；文件名搜索=匹配次数">命中</th>
+        <th class="sortable c" data-k="enc" style="width:8%" data-i18n="th.enc">编码</th>
+        <th class="sortable" data-k="size" style="width:9%" data-i18n="th.size">大小</th>
+        <th class="sortable" data-k="mtime" style="width:14%" data-i18n="th.mtime">修改时间</th>
+        <th class="sortable" data-k="dir" data-i18n="th.dir">所在目录</th>
+      </tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+    <div class="empty" id="emptyTip" data-i18n="empty.tip">尚未搜索 — 选择目录、输入关键词后点「搜索」</div>
+  </div>
+  <div class="previewwrap">
+    <div class="ph">
+      <span data-i18n="pv.header">命中内容预览（关键词高亮；双击行：桌面版在资源管理器中定位）</span>
+      <span class="path" id="previewPath"></span>
+    </div>
+    <div id="preview"></div>
+  </div>
+</div>
+
+<!-- ================= 状态栏 ================= -->
+<div class="statusbar">
+  <span id="stLeft" data-i18n="st.ready">就绪</span>
+  <span class="sp"></span>
+  <span id="stRight"></span>
+</div>
+
+<input type="file" id="dirPicker" webkitdirectory multiple style="display:none">
+
+<script>
+"use strict";
+/* ================================================================
+   核心逻辑（纯函数 —— 与 node 自测共用，勿删标记注释）
+   ================================================================ */
+/*__CORE__*/
+/* ================================================================
+   双语（i18n）——字典 + t() 取值。LANG.cur = "zh" | "en"
+   静态文案走 data-i18n 属性，动态文案走 t("key", {占位符})
+   ================================================================ */
+const I18N = {
+  zh: {
+    "app.title": "TxtSeeker — TXT 全文搜索定位",
+    "menu.file": "文件",
+    "menu.recent": "最近目录",
+    "menu.openDir": "打开目录…",
+    "menu.exportList": "导出结果清单(.txt)…",
+    "menu.exportExcerpt": "导出命中内容摘录(.md)…",
+    "menu.saveSel": "另存选中文件…",
+    "menu.saveAll": "另存全部命中",
+    "menu.clear": "清空结果",
+    "menu.ops": "操作",
+    "menu.copyAll": "复制全部命中路径",
+    "menu.copySel": "复制选中文件路径",
+    "menu.search": "开始搜索",
+    "menu.stop": "停止搜索",
+    "menu.help": "帮助",
+    "menu.usage": "使用说明",
+    "menu.disclaimer": "免责声明",
+    "menu.about": "关于 TxtSeeker",
+    "tb.dir": "目录",
+    "tb.dirPh": "点击「浏览…」选择文件夹，或把文件夹拖到下方虚线框",
+    "tb.browse": "浏览…",
+    "tb.kw": "关键词",
+    "tb.kwPh": "多个词用空格隔开；英文双引号可包住短语，如：你好 \"世界和平\"",
+    "tb.caseS": "区分大小写",
+    "tb.subdir": "包含子目录",
+    "tb.scope": "搜索范围",
+    "tb.scopeContent": "搜内容",
+    "tb.scopeName": "搜文件名",
+    "tb.scopeBoth": "内容+文件名",
+    "tb.mode": "匹配方式",
+    "tb.modeAnd": "全部词(AND)",
+    "tb.modeOr": "任一词(OR)",
+    "tb.modeRegex": "正则表达式",
+    "tb.extTxt": "仅 TXT",
+    "tb.extText": "常见文本类型",
+    "tb.searchBtn": "🔍 搜索",
+    "tb.stopBtn": "■ 停止",
+    "err.regex": "⚠ 正则语法错误",
+    "err.noDir": "请先选择目录，或把文件夹拖到虚线框内。",
+    "err.noRegex": "请输入正则表达式。",
+    "err.noKw": "请输入关键词。",
+    "dz.browser": "⬇️ 把 <b>文件夹</b>（或若干文件）拖到这里，即可加载并搜索 — 全部本地读取，<b>不会上传任何文件</b>",
+    "dz.desktop": "⬇️ 也可以把文件夹（或若干文件）拖到这里；「浏览…」<b>单击即选中</b>文件夹（含其下所有子目录） — 全部本地读取，<b>不会上传任何文件</b>",
+    "dk.openFile": "📄 打开选中文件",
+    "dk.openFolder": "📂 打开所在文件夹",
+    "dk.reveal": "🎯 在资源管理器中定位",
+    "dk.saveSel": "💾 另存选中文件…",
+    "dk.saveAll": "💾 另存全部命中",
+    "th.chkAll": "全选 / 全不选（Ctrl+A）",
+    "th.name": "文件名",
+    "th.hits": "命中",
+    "th.hitsTip": "内容搜索=命中行数；文件名搜索=匹配次数",
+    "th.enc": "编码",
+    "th.size": "大小",
+    "th.mtime": "修改时间",
+    "th.dir": "所在目录",
+    "th.rowchk": "勾选后可用「另存选中文件」",
+    "empty.tip": "尚未搜索 — 选择目录、输入关键词后点「搜索」",
+    "pv.header": "命中内容预览（关键词高亮；双击行：桌面版在资源管理器中定位）",
+    "pv.more": "…… 其余 {n} 行命中未显示，请打开文件查看完整内容",
+    "st.ready": "就绪",
+    "langseg.tip": "界面语言 / UI language",
+    "st.loaded": "已加载 {n} 个文本文件，输入关键词开始搜索",
+    "st.reading": "正在读取拖入的文件夹…",
+    "st.scanning": "正在扫描… 已检查 {a} / {b} 个文件，命中 {c} 个",
+    "st.stopping": "正在停止…",
+    "st.stopped": "已停止 — 检查 {a} 个文件，命中 <b>{n}</b> 个",
+    "st.done": "完成（{scope}）— 检查 {a} 个文件{skip}，命中 <b>{n}</b> 个，用时 {t} 秒",
+    "st.skip": "，跳过 {n} 个",
+    "scope.content": "内容",
+    "scope.name": "文件名",
+    "scope.both": "内容+文件名",
+    "dir.count": "{n} 个文本文件",
+    "dir.dragged": "拖入的内容（{n} 个文本文件，无绝对路径）",
+    "dir.picked": "已选择",
+    "dir.root": "（根目录）",
+    "recent.tip": "{d}（点击重新加载）",
+    "desk.n": "已勾选 {n} 个文件",
+    "desk.zero": "共 {n} 个命中，可勾选后另存",
+    "fc.pathV": "路径：{p}",
+    "fc.metaV": "大小：{s} · 编码：{e} · 修改：{m}",
+    "fc.nameHit": "文件名匹配 <b>{n}</b> 处（当前为「搜文件名」模式，未读取文件内容；切到「内容+文件名」可同时搜内容）",
+    "hits.line": "命中行数",
+    "hits.name": "文件名匹配次数",
+    "cp.none": "当前没有结果可复制。",
+    "cp.all": "已复制 {n} 个文件路径到剪贴板",
+    "cp.one": "已复制：{p}",
+    "rv.noRow": "请先点击一个文件。",
+    "rv.noPath": "该文件来自拖入，无法获取绝对路径。\n请用「浏览…」选择目录加载，即可使用定位功能。",
+    "sv.desktopOnly": "「另存」功能仅桌面版（TxtSeeker.exe）提供。",
+    "sv.empty": "没有可另存的文件。",
+    "sv.skip": "有 {n} 个文件来自拖入、无绝对路径，将被跳过。\n建议用「浏览…」选择目录加载。",
+    "sv.copying": "正在复制文件…",
+    "sv.done1": "已复制 {n} 个文件到：",
+    "sv.noDest": "（未选择目标目录）",
+    "sv.failN": "失败 {n} 个：",
+    "sv.more": "  ……",
+    "sv.doneStatus": "另存完成：{n} 个文件 → {d}",
+    "sv.needSel": "请先勾选要另存的文件（行首复选框；表头复选框或 Ctrl+A 可全选）。",
+    "sv.noResults": "当前没有结果。",
+    "sv.browserNoFile": "在线版只能另存「拖入或选择的文件」（浏览器拿不到磁盘绝对路径）。\n桌面版（TxtSeeker.exe）可整批复制整个目录里的命中文件。",
+    "sv.browserSaving": "正在逐份保存 {n} 个文件（浏览器下载）…",
+    "sv.browserProgress": "已保存 {d} / {n} …",
+    "sv.browserDone": "已保存 {n} 个文件（浏览器下载，请在浏览器的下载列表中查看）",
+    "of.browserNoFile": "在线版只能打开「拖入或选择的文件」（浏览器拿不到磁盘绝对路径）。",
+    "of.browserOpened": "已在新标签页打开 <b>{n}</b>",
+    "of.desktopOnly": "「打开选中文件」仅桌面版可用。",
+    "of.noSel": "请先点击选中一个文件，或勾选一个文件。",
+    "of.noPath": "拖入的文件没有绝对路径，无法用默认程序打开。\n请用「浏览…」选择目录加载。",
+    "of.fail": "打开失败：\n{p}",
+    "of.done": "已用默认程序打开 <b>{n}</b>",
+    "ex.none": "当前没有结果可导出。",
+    "ex.name": "TxtSeeker摘录_{d}.md",
+    "ex.saved": "摘录已保存到 <b>{p}</b>",
+    "ex.savedAlert": "摘录已保存：\n{p}",
+    "ex.cancel": "已取消保存",
+    "ex.download": "摘录已导出（浏览器下载）",
+    "ex.title": "# TxtSeeker 命中内容摘录",
+    "ex.dir": "- 目录：",
+    "ex.kw": "- 关键词：",
+    "ex.case": "，区分大小写",
+    "ex.scope": "，范围：",
+    "ex.meta": "- 命中 {n} 个文件 · 导出于 {d}",
+    "ex.fileH": "## {i}. {n}",
+    "ex.path": "路径：",
+    "ex.hits": "命中：{n} 行",
+    "ex.hitsName": "命中：{n}（文件名匹配）",
+    "ex.encSize": " · 编码：{e} · 大小：{s}",
+    "ex.noPreview": "> （文件名匹配，未含内容预览）",
+    "ex.modeRegex": "正则表达式",
+    "er.title": "# TxtSeeker v1.3.2 搜索结果",
+    "er.dir": "# 目录: ",
+    "er.kw": "# 关键词: ",
+    "er.mode": "  (模式:{m}, 范围:{s})",
+    "er.hits": "# 命中 {n} 个文件",
+    "er.line": "{p}  [命中 {n}{x}]",
+    "er.lineHits": "行",
+    "er.lineName": "（文件名）",
+    "er.done": "结果清单已导出",
+    "er.name": "TxtSeeker结果_{d}.txt",
+    "dt.ready": " · 桌面版就绪",
+    "help.title": "【使用说明】",
+    "help.1": "1. 选择目录：点「浏览…」用系统对话框选文件夹（单击即选中，\n   含其下所有子目录）；或直接把文件夹拖到虚线框内。\n   ★ 全程本地读取，不会上传任何文件。",
+    "help.2": "2. 输入关键词：多个词用空格分隔，默认 AND（都要出现）；\n   下拉框可切换 OR（任一词出现即算）或「正则表达式」\n   （如 第\\d+章 匹配「第123章」）。\n   用英文双引号可包住短语，如：你好 \"世界和平\"。",
+    "help.3": "3. 搜索范围下拉：搜内容 / 搜文件名 / 内容+文件名。\n   「搜文件名」不读文件内容，大目录秒出，专用来定位文件。",
+    "help.4": "4. 回车或点「搜索」。结果表点击文件在下方预览命中行，\n   关键词黄色高亮；点表头可按 文件名/命中/编码/大小/时间 排序。",
+    "help.5": "5. 定位与打开（桌面版 TxtSeeker.exe 专属）：\n   双击结果行 = 在资源管理器中定位（选中）该文件；\n   操作条可「打开选中文件 / 打开所在文件夹 / 在资源管理器中定位」。",
+    "help.6": "6. 另存收集（桌面版专属）：勾选行首复选框\n   （表头复选框或 Ctrl+A 全选），点「另存选中文件…」，\n   选择目标文件夹即可整批复制过去，重名自动加序号。\n   「另存全部命中」一键收集所有结果文件。",
+    "help.7": "7. 导出（文件菜单）：\n   「结果清单(.txt)」= 全部命中文件路径列表；\n   「命中内容摘录(.md)」= 每个文件的命中行连同行号，\n   可直接当笔记/素材用（桌面版弹保存对话框，浏览器版走下载）。",
+    "help.8": "8. 最近目录：桌面版自动记住最近 5 个目录，文件菜单一键回访。",
+    "help.9": "9. 编码自动识别 UTF-8 / GBK（结果表有编码列）；\n   超过 50MB 的文件自动跳过。",
+    "help.keys": "快捷键：Enter 搜索 / Esc 停止 / Ctrl+F 聚焦关键词框 / Ctrl+A 全选。",
+    "help.10": "10. 界面语言：标题栏的「中 / EN」滑块一键切换，\n    选择会被记住，下次打开自动恢复。",
+    "disc.title": "【免责声明】",
+    "disc.1": "本工具为纯本地文本搜索软件，仅在你选择的目录内读取文件内容，\n不联网、不上传、不修改任何文件。",
+    "disc.2": "请遵守国家相关法律法规，勿将搜索结果用于任何侵犯他人权益的用途。",
+    "disc.3": "继续使用本软件，即表示你已阅读并同意以上声明。",
+    "about.title": "TxtSeeker v1.3.2",
+    "about.sub": "TXT 全文搜索定位工具",
+    "about.l1": "递归扫描目录内文本文件，按关键词定位文件与行号；",
+    "about.l2": "支持正则、文件名搜索、编码识别、结果排序；",
+    "about.l3": "支持资源管理器定位、默认程序打开、勾选/全选后整批另存。",
+    "about.l4": "单文件 HTML / pywebview 桌面壳，支持 Windows / Linux / 安卓 等平台。",
+    "about.copy": "© 永远的兰兰 / Lanlan Eternal",
+  },
+  en: {
+    "app.title": "TxtSeeker — TXT Full-Text Search & Locate",
+    "menu.file": "File",
+    "menu.recent": "Recent Folders",
+    "menu.openDir": "Open Folder…",
+    "menu.exportList": "Export Result List (.txt)…",
+    "menu.exportExcerpt": "Export Hit Excerpts (.md)…",
+    "menu.saveSel": "Save Selected Files…",
+    "menu.saveAll": "Save All Hits",
+    "menu.clear": "Clear Results",
+    "menu.ops": "Actions",
+    "menu.copyAll": "Copy All Hit Paths",
+    "menu.copySel": "Copy Selected Path",
+    "menu.search": "Start Search",
+    "menu.stop": "Stop Search",
+    "menu.help": "Help",
+    "menu.usage": "User Guide",
+    "menu.disclaimer": "Disclaimer",
+    "menu.about": "About TxtSeeker",
+    "tb.dir": "Folder",
+    "tb.dirPh": "Click \"Browse…\" to pick a folder, or drop one onto the dashed box below",
+    "tb.browse": "Browse…",
+    "tb.kw": "Keywords",
+    "tb.kwPh": "Separate words with spaces; wrap a phrase in double quotes, e.g. hello \"world peace\"",
+    "tb.caseS": "Match Case",
+    "tb.subdir": "Include Subfolders",
+    "tb.scope": "Search Scope",
+    "tb.scopeContent": "Content",
+    "tb.scopeName": "File Name",
+    "tb.scopeBoth": "Content + Name",
+    "tb.mode": "Match Mode",
+    "tb.modeAnd": "All Words (AND)",
+    "tb.modeOr": "Any Word (OR)",
+    "tb.modeRegex": "Regular Expression",
+    "tb.extTxt": "TXT Only",
+    "tb.extText": "Common Text Types",
+    "tb.searchBtn": "🔍 Search",
+    "tb.stopBtn": "■ Stop",
+    "err.regex": "⚠ Invalid regular expression",
+    "err.noDir": "Pick a folder first, or drop one onto the dashed box.",
+    "err.noRegex": "Enter a regular expression.",
+    "err.noKw": "Enter at least one keyword.",
+    "dz.browser": "⬇️ Drop a <b>folder</b> (or a few files) here to load and search — everything is read locally, <b>nothing is uploaded</b>",
+    "dz.desktop": "⬇️ You can also drop a folder (or a few files) here; with \"Browse…\" a <b>single click selects</b> the folder (with all its subfolders) — everything is read locally, <b>nothing is uploaded</b>",
+    "dk.openFile": "📄 Open Selected File",
+    "dk.openFolder": "📂 Open Containing Folder",
+    "dk.reveal": "🎯 Reveal in File Explorer",
+    "dk.saveSel": "💾 Save Selected Files…",
+    "dk.saveAll": "💾 Save All Hits",
+    "th.chkAll": "Select / Deselect All (Ctrl+A)",
+    "th.name": "File Name",
+    "th.hits": "Hits",
+    "th.hitsTip": "Content search = matching lines; name search = match count",
+    "th.enc": "Encoding",
+    "th.size": "Size",
+    "th.mtime": "Modified",
+    "th.dir": "Folder",
+    "th.rowchk": "Check to use \"Save Selected Files\"",
+    "empty.tip": "Not searched yet — pick a folder, enter keywords, then click \"Search\"",
+    "pv.header": "Hit preview (keywords highlighted; double-click a row to reveal it in File Explorer on desktop)",
+    "pv.more": "…… {n} more matching lines are hidden — open the file to see the full content",
+    "st.ready": "Ready",
+    "langseg.tip": "界面语言 / UI language",
+    "st.loaded": "Loaded {n} text files — enter keywords to start searching",
+    "st.reading": "Reading the dropped folder…",
+    "st.scanning": "Scanning… {a} / {b} files checked, {c} hits",
+    "st.stopping": "Stopping…",
+    "st.stopped": "Stopped — {a} files checked, <b>{n}</b> hits",
+    "st.done": "Done ({scope}) — {a} files checked{skip}, <b>{n}</b> hits in {t}s",
+    "st.skip": ", {n} skipped",
+    "scope.content": "Content",
+    "scope.name": "File Name",
+    "scope.both": "Content + Name",
+    "dir.count": "{n} text files",
+    "dir.dragged": "Dropped items ({n} text files, no absolute paths)",
+    "dir.picked": "Selected",
+    "dir.root": "(root)",
+    "recent.tip": "{d} (click to reload)",
+    "desk.n": "{n} file(s) checked",
+    "desk.zero": "{n} hit(s) — check files to save them",
+    "fc.pathV": "Path: {p}",
+    "fc.metaV": "Size: {s} · Encoding: {e} · Modified: {m}",
+    "fc.nameHit": "<b>{n}</b> name match(es) (in \"File Name\" mode file contents are not read; switch to \"Content + Name\" to search contents too)",
+    "hits.line": "Matching lines",
+    "hits.name": "Name matches",
+    "cp.none": "No results to copy.",
+    "cp.all": "Copied {n} file path(s) to the clipboard",
+    "cp.one": "Copied: {p}",
+    "rv.noRow": "Click a file first.",
+    "rv.noPath": "This file was dropped in, so its absolute path is unknown.\nUse \"Browse…\" to load a folder and enable locating.",
+    "sv.desktopOnly": "\"Save\" is only available in the desktop app (TxtSeeker.exe).",
+    "sv.empty": "No files to save.",
+    "sv.skip": "{n} dropped file(s) have no absolute path and will be skipped.\nLoading a folder via \"Browse…\" is recommended.",
+    "sv.copying": "Copying files…",
+    "sv.done1": "Copied {n} file(s) to:",
+    "sv.noDest": "(no destination folder)",
+    "sv.failN": "{n} failed:",
+    "sv.more": "  …",
+    "sv.doneStatus": "Save complete: {n} file(s) → {d}",
+    "sv.needSel": "Check the files to save first (row checkbox; the header checkbox or Ctrl+A selects all).",
+    "sv.noResults": "No results yet.",
+    "sv.browserNoFile": "The web version can only save files that were dropped or picked here (a browser cannot access absolute disk paths).\nThe desktop app (TxtSeeker.exe) can batch-copy hits from the whole folder.",
+    "sv.browserSaving": "Saving {n} file(s) one by one (browser downloads)…",
+    "sv.browserProgress": "Saved {d} / {n} …",
+    "sv.browserDone": "Saved {n} file(s) via browser download — check your browser's download list",
+    "of.browserNoFile": "The web version can only open files that were dropped or picked here (a browser cannot access absolute disk paths).",
+    "of.browserOpened": "Opened <b>{n}</b> in a new tab",
+    "of.desktopOnly": "\"Open Selected File\" is desktop-only.",
+    "of.noSel": "Click a file, or check one, first.",
+    "of.noPath": "Dropped files have no absolute path and cannot be opened with the default program.\nUse \"Browse…\" to load a folder.",
+    "of.fail": "Failed to open:\n{p}",
+    "of.done": "Opened <b>{n}</b> with the default program",
+    "ex.none": "No results to export.",
+    "ex.name": "TxtSeeker_excerpt_{d}.md",
+    "ex.saved": "Excerpt saved to <b>{p}</b>",
+    "ex.savedAlert": "Excerpt saved:\n{p}",
+    "ex.cancel": "Save cancelled",
+    "ex.download": "Excerpt exported (browser download)",
+    "ex.title": "# TxtSeeker Hit Excerpts",
+    "ex.dir": "- Folder:",
+    "ex.kw": "- Keywords:",
+    "ex.case": ", case-sensitive",
+    "ex.scope": ", scope:",
+    "ex.meta": "- {n} file(s) hit · exported {d}",
+    "ex.fileH": "## {i}. {n}",
+    "ex.path": "Path:",
+    "ex.hits": "Hits: {n} line(s)",
+    "ex.hitsName": "Hits: {n} (name match)",
+    "ex.encSize": " · encoding: {e} · size: {s}",
+    "ex.noPreview": "> (name match — no content preview)",
+    "ex.modeRegex": "regular expression",
+    "er.title": "# TxtSeeker v1.3.2 Search Results",
+    "er.dir": "# folder: ",
+    "er.kw": "# keywords: ",
+    "er.mode": "  (mode: {m}, scope: {s})",
+    "er.hits": "# {n} file(s) hit",
+    "er.line": "{p}  [{n} {x}]",
+    "er.lineHits": "line(s)",
+    "er.lineName": "(name)",
+    "er.done": "Result list exported",
+    "er.name": "TxtSeeker_results_{d}.txt",
+    "dt.ready": " · desktop ready",
+    "help.title": "[User Guide]",
+    "help.1": "1. Pick a folder: click \"Browse…\" and use the system dialog (a single click selects the folder, including all its subfolders); or just drop a folder onto the dashed box.\n   ★ Everything is read locally — nothing is ever uploaded.",
+    "help.2": "2. Enter keywords: separate words with spaces; the default is AND (all must appear).\n   The dropdown can switch to OR (any word matches) or \"Regular Expression\"\n   (e.g. chapter\\d+ matches \"chapter123\").\n   Wrap a phrase in double quotes, e.g. hello \"world peace\".",
+    "help.3": "3. Search scope dropdown: Content / File Name / Content + Name.\n   \"File Name\" does not read file contents, so huge folders finish instantly — great for locating files.",
+    "help.4": "4. Press Enter or click \"Search\". Click a file in the result table to preview its matching lines below,\n   with keywords highlighted in yellow; click a column header to sort by file name / hits / encoding / size / time.",
+    "help.5": "5. Locate & open (desktop app TxtSeeker.exe only):\n   double-click a result row = reveal (select) that file in File Explorer;\n   the action bar also offers \"Open Selected File / Open Containing Folder / Reveal in File Explorer\".",
+    "help.6": "6. Collect files (desktop only): check the row checkbox\n   (the header checkbox or Ctrl+A selects all), then click \"Save Selected Files…\",\n   pick a destination folder and the whole batch is copied there — duplicates are auto-renamed.\n   \"Save All Hits\" collects every result file in one go.",
+    "help.7": "7. Export (File menu):\n   \"Result List (.txt)\" = a plain list of all hit file paths;\n   \"Hit Excerpts (.md)\" = each file's matching lines with line numbers,\n   ready to use as notes or source material (the desktop app shows a save dialog; the browser version downloads).",
+    "help.8": "8. Recent folders: the desktop app remembers the last 5 folders — one click in the File menu to revisit.",
+    "help.9": "9. Encoding is auto-detected as UTF-8 / GBK (shown in the Encoding column);\n   files larger than 50MB are skipped automatically.",
+    "help.keys": "Shortcuts: Enter = search / Esc = stop / Ctrl+F = focus the keyword box / Ctrl+A = select all.",
+    "help.10": "10. UI language: toggle instantly with the \"中 / EN\" switch in the title bar —\n    your choice is remembered and restored next launch.",
+    "disc.title": "[Disclaimer]",
+    "disc.1": "This tool is a purely local text search utility. It only reads file contents inside the folder you choose —\nno network access, no uploads, and no modification of any file.",
+    "disc.2": "Please comply with applicable laws and regulations, and do not use search results for any purpose that infringes the rights of others.",
+    "disc.3": "By continuing to use this software, you acknowledge that you have read and agree to the statement above.",
+    "about.title": "TxtSeeker v1.3.2",
+    "about.sub": "TXT full-text search & locate tool",
+    "about.l1": "Recursively scans text files in a folder and locates files and line numbers by keyword;",
+    "about.l2": "supports regular expressions, file-name search, encoding detection, and result sorting;",
+    "about.l3": "supports revealing in File Explorer, opening with the default program, and batch saving of checked/all hits.",
+    "about.l4": "Single-file HTML / pywebview desktop shell — works on Windows, Linux, Android, and more.",
+    "about.copy": "© 永远的兰兰 / Lanlan Eternal",
+  },
+};
+const LANG = {cur: "zh"};
+/** 取文案；{占位符} 用 vars 替换；缺键回退中文再回退键名本身 */
+function t(k, vars){
+  const d = I18N[LANG.cur] || I18N.zh;
+  let s = Object.prototype.hasOwnProperty.call(d, k) ? d[k]
+       : (Object.prototype.hasOwnProperty.call(I18N.zh, k) ? I18N.zh[k] : k);
+  if(vars) for(const v in vars) s = s.split("{" + v + "}").join(String(vars[v]));
+  return s;
+}
+const TXT_EXTS = [".txt"];
+const TEXT_EXTS = [".txt",".md",".csv",".log",".json",".xml",".html",".htm",
+                   ".py",".ini",".cfg",".bat",".srt",".lrc",".ass",".nfo",".yaml"];
+const MAX_FILE_SIZE = 50 * 1024 * 1024;   // 超过 50MB 跳过
+const MAX_PREVIEW = 30;                    // 每文件最多预览命中行
+const MAX_LINE_CHARS = 300;                // 预览行最长字符
+
+/** UTF-8 优先，失败回退 GB18030 */
+function decodeBuffer(buf){
+  try{
+    return new TextDecoder("utf-8", {fatal:true}).decode(buf);
+  }catch(_){
+    return new TextDecoder("gb18030").decode(buf);
+  }
+}
+
+/** 解析关键词：支持英文双引号短语 */
+function parseKeywords(s){
+  const out = [];
+  const re = /"([^"]*)"|(\S+)/g;
+  let m;
+  while((m = re.exec(s)) !== null){
+    const t = (m[1] !== undefined ? m[1] : m[2]).trim();
+    if(t) out.push(t);
+  }
+  return out;
+}
+
+/** 单行匹配：mode = AND | OR */
+function lineMatches(lineLower, kwsLower, mode){
+  if(mode === "AND") return kwsLower.every(k => lineLower.includes(k));
+  return kwsLower.some(k => lineLower.includes(k));
+}
+
+/** 全文搜索：mode = AND | OR | regex；regex 模式传第 5 参（buildRegex 结果）。
+    返回 { hits, previews:[{lineno,line}] } */
+function searchText(text, keywords, mode, caseSensitive, regex){
+  const trunc = s => s.length > MAX_LINE_CHARS ? s.slice(0, MAX_LINE_CHARS) + " …" : s;
+  const lines = text.split(/\r\n|\r|\n/);
+  let hits = 0;
+  const previews = [];
+  if(mode === "regex"){
+    if(!regex) return {hits:0, previews:[]};
+    for(let i = 0; i < lines.length; i++){
+      regex.lastIndex = 0;               // 防 g 标志状态残留
+      if(regex.test(lines[i])){
+        hits++;
+        if(previews.length < MAX_PREVIEW){
+          previews.push({lineno:i + 1, line: trunc(lines[i])});
+        }
+      }
+    }
+    return {hits, previews};
+  }
+  const kws = parseKeywords(keywords);
+  if(kws.length === 0) return {hits:0, previews:[]};
+  const kwsL = caseSensitive ? kws : kws.map(k => k.toLowerCase());
+  for(let i = 0; i < lines.length; i++){
+    const raw = lines[i];
+    const t = caseSensitive ? raw : raw.toLowerCase();
+    if(lineMatches(t, kwsL, mode)){
+      hits++;
+      if(previews.length < MAX_PREVIEW){
+        previews.push({lineno:i + 1, line: trunc(raw)});
+      }
+    }
+  }
+  return {hits, previews};
+}
+
+/** 探测编码（与 decodeBuffer 同策略，供结果表「编码」列） */
+function detectEncoding(buf){
+  try{
+    new TextDecoder("utf-8", {fatal:true}).decode(buf);
+    return "UTF-8";
+  }catch(_){
+    return "GBK";
+  }
+}
+
+/** 正则的全局副本（供逐匹配取区间；空匹配防死循环） */
+function toGlobal(re){
+  return new RegExp(re.source, re.flags.includes("g") ? re.flags : re.flags + "g");
+}
+
+/** 编译正则：非法返回 null（flags 由区分大小写决定） */
+function buildRegex(pattern, caseSensitive){
+  if(!pattern) return null;
+  try{
+    return new RegExp(pattern, caseSensitive ? "" : "i");
+  }catch(_){
+    return null;
+  }
+}
+
+/** 文件名匹配：对 relPath 匹配，返回命中次数（0 = 不匹配）。
+    mode = AND | OR | regex（regex 传第 5 参） */
+function nameMatches(relPath, keywords, mode, caseSensitive, regex){
+  const target = caseSensitive ? relPath : relPath.toLowerCase();
+  if(mode === "regex"){
+    if(!regex) return 0;
+    const g = toGlobal(regex);
+    let n = 0, m;
+    while((m = g.exec(target)) !== null){
+      if(m[0].length === 0){ g.lastIndex++; continue; }
+      n++;
+    }
+    return n;
+  }
+  const kws = parseKeywords(keywords);
+  if(!kws.length) return 0;
+  const kwsL = caseSensitive ? kws : kws.map(k => k.toLowerCase());
+  const countOf = k => {
+    let c = 0, i = target.indexOf(k);
+    while(i !== -1){ c++; i = target.indexOf(k, i + Math.max(1, k.length)); }
+    return c;
+  };
+  if(mode === "AND"){
+    const counts = kwsL.map(countOf);
+    return counts.every(c => c > 0) ? Math.min(...counts) : 0;
+  }
+  let n = 0;
+  for(const k of kwsL) n += countOf(k);
+  return n;
+}
+
+/** 关键词区间合并（供高亮渲染）；regex 模式传第 3 参（正则对象） */
+function hitSpans(line, kwsL, regex){
+  const spans = [];
+  if(regex){
+    const g = toGlobal(regex);
+    let m;
+    while((m = g.exec(line)) !== null){
+      if(m[0].length === 0){ g.lastIndex++; continue; }
+      spans.push([m.index, m.index + m[0].length]);
+    }
+  }else{
+    const low = line.toLowerCase();
+    for(const k of kwsL){
+      if(!k) continue;
+      let idx = low.indexOf(k);
+      while(idx !== -1){
+        spans.push([idx, idx + k.length]);
+        idx = low.indexOf(k, idx + Math.max(1, k.length));
+      }
+    }
+  }
+  if(spans.length === 0) return [];
+  spans.sort((a,b) => a[0] - b[0] || a[1] - b[1]);
+  const merged = [spans[0].slice()];
+  for(const [s,e] of spans){
+    if(s <= merged[merged.length-1][1]){
+      merged[merged.length-1][1] = Math.max(merged[merged.length-1][1], e);
+    }else{
+      merged.push([s,e]);
+    }
+  }
+  return merged;
+}
+
+/** 转义 HTML */
+function esc(s){
+  return s.replace(/[&<>"']/g, c =>
+    ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
+function humanSize(n){
+  const u = ["B","KB","MB","GB","TB"];
+  let i = 0;
+  while(n >= 1024 && i < u.length - 1){ n /= 1024; i++; }
+  return (i === 0 ? n.toFixed(0) : n.toFixed(1)) + u[i];
+}
+/*__END_CORE__*/
+
+/* ================================================================
+   应用状态
+   ================================================================ */
+let files = [];            // [{file, relPath, dir, size, mtime, absPath?}]
+let results = [];          // [{..., hits, previews, checked}]
+let stopped = false;
+let activeIdx = -1;
+let API = null;            // 桌面版（pywebview 壳）本地 API，纯浏览器版为 null
+let loadRoot = "";         // 桌面版加载的根目录（绝对路径）
+const $ = id => document.getElementById(id);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+function isDesktop(){ return !!API; }
+
+/* ================================================================
+   语言（i18n）运行时：initLang 定初始值，applyLang 全量刷新界面
+   ================================================================ */
+let desktopReady = false;      // detectDesktop 成功后为 true（标题/拖放区文案随之变化）
+
+/* ⚠️ WebView2（pywebview 壳）实测坑（2026-10-18，v1.3.2 修复）：
+   页面加载期读 localStorage 会毒死同页后续所有 fetch 的响应体——
+   fetch 能 resolve（status=200）但 .text()/.json() 永久挂起，
+   detectDesktop 因此永远收不到信标，桌面定位/另存/搜索全部失效。
+   初始语言只信 navigator.language；localStorage 记忆延后到 restoreLang()。 */
+function initLang(){
+  const nav = (navigator.language || "").toLowerCase();
+  const l = nav.startsWith("zh") ? "zh" : "en";
+  LANG.cur = I18N[l] ? l : "zh";
+}
+
+/* 语言记忆恢复：仅浏览器版走这里（桌面版以壳的 lang.txt 为准，
+   detectDesktop 成功路径里已通过 /api/lang 同步）。
+   必须错开页面加载期，绕开上面的 WebView2 毒化坑。 */
+function restoreLang(){
+  if(isDesktop()) return;
+  let l = "";
+  try{ l = localStorage.getItem("txtseeker.lang") || ""; }catch(_){}
+  if(l && I18N[l] && l !== LANG.cur) setLang(l);
+}
+
+function dateFmt(){
+  return LANG.cur === "zh" ? "zh-CN" : "en-US";
+}
+
+function refreshDropzone(){
+  $("dropzone").innerHTML = isDesktop() ? t("dz.desktop") : t("dz.browser");
+}
+
+/* 目录行：「root（N 个文本文件）」/「拖入的内容（…）」——语言切换时按记忆重绘 */
+let dirLineRoot = "", dirLineCount = 0, dirLineDragged = false;
+function setDirLine(root, count, dragged){
+  dirLineRoot = root || ""; dirLineCount = count; dirLineDragged = !!dragged;
+  refreshDirLine();
+}
+function refreshDirLine(){
+  if(dirLineDragged){
+    $("dirPath").value = t("dir.dragged", {n: dirLineCount});
+  }else if(dirLineRoot || dirLineCount){
+    const label = dirLineRoot || t("dir.picked");
+    const lp = LANG.cur === "zh" ? "（" : " (";
+    const rp = LANG.cur === "zh" ? "）" : ")";
+    $("dirPath").value = label + lp + t("dir.count", {n: dirLineCount}) + rp;
+  }else{
+    $("dirPath").value = "";
+  }
+}
+
+function applyLang(){
+  document.documentElement.lang = LANG.cur === "zh" ? "zh-CN" : "en";
+  document.title = t("app.title") + (desktopReady ? t("dt.ready") : "");
+  document.querySelectorAll("[data-i18n]").forEach(el => {
+    el.textContent = t(el.dataset.i18n);
+  });
+  document.querySelectorAll("[data-i18n-html]").forEach(el => {
+    el.innerHTML = t(el.dataset.i18nHtml);
+  });
+  document.querySelectorAll("[data-i18n-ph]").forEach(el => {
+    el.placeholder = t(el.dataset.i18nPh);
+  });
+  document.querySelectorAll("[data-i18n-title]").forEach(el => {
+    el.title = t(el.dataset.i18nTitle);
+  });
+  const seg = $("langSeg");
+  if(seg){
+    seg.classList.toggle("en", LANG.cur === "en");       // 滑块 thumb 滑动
+    $("segZh").classList.toggle("on", LANG.cur === "zh");
+    $("segEn").classList.toggle("on", LANG.cur === "en");
+  }
+  refreshDropzone();  refreshDirLine();
+  if(results.length) renderTable();                 // 表内 title / 日期格式随语言重绘
+  updateDeskHint();
+  if(activeIdx >= 0 && results[activeIdx]) selectRow(activeIdx);   // 预览卡片重绘
+}
+
+function setLang(l){
+  if(!I18N[l]) l = "zh";
+  LANG.cur = l;
+  applyLang();
+  if(API){   // 桌面版：同步给壳（对话框 Description / 单实例提示 / 默认文件名 / 窗口标题）
+    try{
+      fetch("/api/set_lang", {method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({lang: l})});
+    }catch(_){}
+  }else{     // 浏览器版：写 localStorage 记忆（桌面版语言走壳，全程不碰 localStorage）
+    try{ localStorage.setItem("txtseeker.lang", l); }catch(_){}
+  }
+}
+
+/* 统一计算「所在目录」显示：相对路径去掉末段（桌面版 relPath 已相对 root） */
+function dirOf(relPath){
+  const parts = relPath.split("/");
+  parts.pop();
+  return parts.join("/") || t("dir.root");
+}
+
+/* ================================================================
+   文件加载：目录选择 + 拖拽
+   ================================================================ */
+function currentExts(){
+  return $("extSel").value === "txt" ? TXT_EXTS : TEXT_EXTS;
+}
+
+function extOk(name){
+  const dot = name.lastIndexOf(".");
+  if(dot === -1) return false;
+  return currentExts().includes(name.slice(dot).toLowerCase());
+}
+
+function addFile(file, relPath){
+  if(!file || file.size === 0 || file.size > MAX_FILE_SIZE) return;
+  if(!extOk(file.name)) return;
+  files.push({
+    file,
+    relPath,
+    dir: dirOf(relPath),
+    size: file.size,
+    mtime: file.lastModified || 0,
+    absPath: null,          // 拖入的文件拿不到绝对路径，定位功能降级
+  });
+}
+
+function pickDir(){
+  if(isDesktop()) desktopPick();
+  else $("dirPicker").click();
+}
+
+/* 桌面版：原生文件夹对话框 → Python 端枚举（绝对路径，无 file input、无上传提示） */
+async function desktopPick(){
+  let root = null;
+  try{ root = await API.pick_folder(); }catch(_){}
+  if(!root) return;
+  loadRoot = root;
+  let list = [];
+  try{
+    list = await API.list_files(root, currentExts(), true) || [];
+  }catch(_){}
+  applyDirList(root, list);
+}
+
+/* 把「目录 + 文件清单」套进界面（浏览 / 最近目录共用） */
+function applyDirList(root, list){
+  loadRoot = root;
+  files = list.map(f => ({
+    file: null, absPath: f.absPath, relPath: f.relPath,
+    dir: dirOf(f.relPath), size: f.size, mtime: f.mtime, enc: f.enc || "",
+  }));
+  setDirLine(root, files.length, false);
+  clearAll(false);
+  setStatus(t("st.loaded", {n: files.length}));
+  $("kw").focus();
+}
+
+/* 最近目录：桌面版读壳的记忆；浏览器版无本地目录概念，隐藏入口 */
+async function loadRecentDirs(){
+  if(!isDesktop()){ $("recentBox").style.display = "none"; return; }
+  let dirs = [];
+  try{
+    const r = await fetch("/api/recent_dirs", {cache:"no-store"});
+    if(r.ok) dirs = (await r.json()).dirs || [];
+  }catch(_){}
+  const box = $("recentBox"), list = $("recentList");
+  if(!dirs.length){ box.style.display = "none"; return; }
+  box.style.display = "";
+  list.innerHTML = "";
+  dirs.slice(0, 5).forEach(d => {
+    const b = document.createElement("button");
+    b.textContent = "📂 " + d;
+    b.title = t("recent.tip", {d});
+    b.onclick = async () => {
+      document.querySelectorAll(".menu").forEach(m => m.classList.remove("open"));
+      const fl = await API.list_files(d, currentExts(), true) || [];
+      applyDirList(d, fl);
+    };
+    list.appendChild(b);
+  });
+}
+
+$("dirPicker").addEventListener("change", e => {
+  const list = Array.from(e.target.files || []);
+  if(!list.length) return;
+  files = [];
+  for(const f of list){
+    const rp = f.webkitRelativePath || f.name;
+    // webkitRelativePath 形如「文件夹名/子目录/文件.txt」，去掉首段与桌面版对齐
+    const rel = rp.split("/").slice(1).join("/") || f.name;
+    addFile(f, rel);
+  }
+  const root = (list[0].webkitRelativePath || "").split("/")[0] || "";
+  setDirLine(root, files.length, false);
+  clearAll(false);
+  setStatus(t("st.loaded", {n: files.length}));
+  e.target.value = "";
+  $("kw").focus();
+});
+
+/* ---------- 拖拽 ----------
+   全局接管 dragover/drop：不 preventDefault 的话，Chromium 会把拖入的文件
+   当作「上传到当前站点」并弹出确认 / 直接导航，这正是兰兰看到的提示来源。
+   在 document 级拦截后，提示不再出现，任何区域松手都会走加载逻辑。 */
+const dz = $("dropzone");
+document.addEventListener("dragover", e => {
+  e.preventDefault();
+  if(e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+  dz.classList.add("over");
+});
+document.addEventListener("dragleave", e => {
+  if(e.relatedTarget === null) dz.classList.remove("over");
+});
+document.addEventListener("drop", async e => {
+  e.preventDefault();
+  e.stopPropagation();
+  dz.classList.remove("over");
+  const items = Array.from(e.dataTransfer.items || []);
+  const entries = items.map(it => it.webkitGetAsEntry && it.webkitGetAsEntry())
+                       .filter(Boolean);
+  if(entries.length === 0){
+    // 兜底：某些环境只有 files
+    for(const f of Array.from(e.dataTransfer.files || [])) addFile(f, f.name);
+    afterLoad();
+    return;
+  }
+  setStatus(t("st.reading"));
+  let n = 0;
+  const walk = async entry => {
+    if(entry.isFile){
+      await new Promise(res => entry.file(f => { addFile(f, entry.fullPath.replace(/^\//,"")); n++; res(); }, res));
+    }else if(entry.isDirectory){
+      const reader = entry.createReader();
+      let batch;
+      do{
+        batch = await new Promise(res => reader.readEntries(res, () => res([])));
+        for(const child of batch) await walk(child);
+      }while(batch.length > 0);
+    }
+  };
+  for(const en of entries) await walk(en);
+  afterLoad(n);
+});
+
+function afterLoad(extra){
+  setDirLine("", files.length, true);
+  clearAll(false);
+  setStatus(t("st.loaded", {n: files.length}));
+  $("kw").focus();
+}
+
+/* ================================================================
+   搜索
+   ================================================================ */
+async function search(){
+  const kws = $("kw").value.trim();
+  const scope = $("scope").value;          // content | name | both
+  const mode = $("mode").value;            // AND | OR | regex
+  if(files.length === 0){
+    alert(t("err.noDir"));
+    return;
+  }
+  let regex = null;
+  if(mode === "regex"){
+    if(!kws){ alert(t("err.noRegex")); $("kw").focus(); return; }
+    regex = buildRegex(kws, $("caseS").checked);
+    if(!regex){
+      $("reErr").textContent = t("err.regex");
+      $("kw").focus();
+      return;
+    }
+    $("reErr").textContent = "";
+  }else if(!parseKeywords(kws).length){
+    alert(t("err.noKw"));
+    $("kw").focus();
+    return;
+  }
+  $("reErr").textContent = "";
+  stopped = false;
+  results = [];
+  activeIdx = -1;
+  renderTable();
+  $("preview").innerHTML = "";
+  $("previewPath").textContent = "";
+  $("btnSearch").disabled = true;
+  $("btnStop").disabled = false;
+  $("progress").classList.add("show");
+  const cs = $("caseS").checked;
+  const sub = $("subdir").checked;
+  const t0 = performance.now();
+  let scanned = 0, skipped = 0;
+
+  for(const item of files){
+    if(stopped) break;
+    if(!sub && item.relPath.split("/").length > 1){ scanned++; continue; }
+    // —— 文件名匹配（不读文件，大目录秒出）——
+    let nameHits = 0;
+    if(scope !== "content"){
+      nameHits = nameMatches(item.relPath, kws, mode, cs, regex);
+    }
+    if(scope === "name"){
+      scanned++;
+      if(nameHits > 0){
+        results.push({...item, hits:nameHits, previews:[], nameOnly:true,
+                      enc:item.enc || "", checked:false});
+      }
+      continue;
+    }
+    try{
+      let text, enc;
+      if(item.absPath && API){
+        text = await API.read_text(item.absPath);
+        if(text === null || text === undefined){ skipped++; scanned++; continue; }
+        enc = item.enc || "";
+      }else{
+        const buf = await item.file.arrayBuffer();
+        enc = detectEncoding(buf);
+        text = decodeBuffer(buf);
+      }
+      const r = searchText(text, kws, mode, cs, regex);
+      scanned++;
+      if(scope === "both" && nameHits > 0) r.hits += nameHits;
+      if(r.hits > 0) results.push({...item, ...r, enc, checked:false});
+    }catch(_){
+      skipped++;
+      scanned++;
+    }
+    if(scanned % 20 === 0){
+      $("barFill").style.width = (scanned / files.length * 100).toFixed(1) + "%";
+      setStatus(t("st.scanning", {a: scanned, b: files.length, c: results.length}));
+      await sleep(0);
+    }
+  }
+  const dt = ((performance.now() - t0) / 1000).toFixed(1);
+  $("barFill").style.width = "100%";
+  setTimeout(() => $("progress").classList.remove("show"), 400);
+  $("btnSearch").disabled = false;
+  $("btnStop").disabled = true;
+  renderTable();
+  $("stRight").textContent = "";
+  const scopeTxt = t("scope." + scope);
+  if(stopped){
+    setStatus(t("st.stopped", {a: scanned, n: results.length}));
+  }else{
+    setStatus(t("st.done", {scope: scopeTxt, a: scanned,
+                            skip: skipped ? t("st.skip", {n: skipped}) : "",
+                            n: results.length, t: dt}));
+  }
+  if(results.length){
+    selectRow(0);
+    $("tablewrap").scrollTop = 0;
+  }
+}
+
+function stopSearch(){
+  stopped = true;
+  setStatus(t("st.stopping"));
+}
+
+/* ================================================================
+   渲染
+   ================================================================ */
+function baseName(p){ return p.split("/").pop(); }
+
+let sortState = {key:"hits", dir:-1};        // 默认命中数降序
+
+function sortResults(){
+  const {key, dir} = sortState;
+  const loc = LANG.cur === "zh" ? "zh" : "en";
+  const cmp = {
+    name:  (a,b) => baseName(a.relPath).localeCompare(baseName(b.relPath), loc),
+    hits:  (a,b) => a.hits - b.hits,
+    enc:   (a,b) => (a.enc || "").localeCompare(b.enc || "", loc),
+    size:  (a,b) => a.size - b.size,
+    mtime: (a,b) => a.mtime - b.mtime,
+    dir:   (a,b) => a.dir.localeCompare(b.dir, loc),
+  }[key] || (() => 0);
+  results.sort((a,b) => cmp(a,b) * dir);
+}
+
+function markSortHeads(){
+  document.querySelectorAll("th.sortable").forEach(th => {
+    th.classList.toggle("active", th.dataset.k === sortState.key);
+    th.classList.toggle("asc", sortState.dir === 1);
+    th.classList.toggle("desc", sortState.dir === -1);
+  });
+}
+
+document.querySelectorAll("th.sortable").forEach(th => {
+  th.addEventListener("click", () => {
+    const k = th.dataset.k;
+    if(sortState.key === k) sortState.dir *= -1;
+    else sortState = {key:k, dir: (k === "name" || k === "enc" || k === "dir") ? 1 : -1};
+    renderTable();
+  });
+});
+
+function renderTable(){
+  sortResults();
+  markSortHeads();
+  const tb = $("tbody");
+  tb.innerHTML = "";
+  $("emptyTip").style.display = results.length ? "none" : "";
+  if(results.length === 0){ syncChkAll(); updateDeskHint(); return; }
+  const frag = document.createDocumentFragment();
+  results.forEach((r, i) => {
+    const tr = document.createElement("tr");
+    tr.dataset.idx = i;
+    tr.innerHTML =
+      `<td class="chkcol"><input type="checkbox" class="rowchk" ${r.checked ? "checked" : ""} title="${t("th.rowchk")}"></td>` +
+      `<td class="name" title="${esc(r.relPath)}">${esc(baseName(r.relPath))}</td>` +
+      `<td class="hits c" title="${r.nameOnly ? t("hits.name") : t("hits.line")}">${r.hits}</td>` +
+      `<td class="c enc">${esc(r.enc || "?")}</td>` +
+      `<td class="r">${humanSize(r.size)}</td>` +
+      `<td class="c">${new Date(r.mtime).toLocaleString(dateFmt(), {hour12:false})}</td>` +
+      `<td class="dir" title="${esc(r.absPath || r.relPath)}">${esc(r.dir)}</td>`;
+    tr.addEventListener("click", e => {
+      if(e.target.classList.contains("rowchk")) return;   // 复选框自己处理
+      selectRow(i);
+    });
+    const chk = tr.querySelector(".rowchk");
+    chk.addEventListener("click", e => {
+      e.stopPropagation();
+      r.checked = chk.checked;
+      syncChkAll();
+      updateDeskHint();
+    });
+    tr.addEventListener("dblclick", () => {
+      if(isDesktop() && r.absPath) revealFile();
+      else copySelPath();
+    });
+    frag.appendChild(tr);
+  });
+  tb.appendChild(frag);
+  syncChkAll();
+  updateDeskHint();
+}
+
+function syncChkAll(){
+  const all = $("chkAll");
+  if(!all) return;
+  const n = results.filter(r => r.checked).length;
+  all.checked = results.length > 0 && n === results.length;
+  all.indeterminate = n > 0 && n < results.length;
+}
+
+function updateDeskHint(){
+  const h = $("deskHint");
+  if(!h) return;
+  if(!isDesktop()){ h.textContent = ""; return; }
+  const n = results.filter(r => r.checked).length;
+  h.textContent = n ? t("desk.n", {n}) :
+                        t("desk.zero", {n: results.length});
+}
+
+$("chkAll").addEventListener("click", () => {
+  const v = $("chkAll").checked;
+  results.forEach(r => { r.checked = v; });
+  document.querySelectorAll("#tbody .rowchk").forEach(c => { c.checked = v; });
+  updateDeskHint();
+});
+
+function selectRow(i){
+  activeIdx = i;
+  document.querySelectorAll("#tbody tr").forEach(tr =>
+    tr.classList.toggle("active", Number(tr.dataset.idx) === i));
+  const r = results[i];
+  if(!r) return;
+  $("previewPath").textContent = r.absPath || r.relPath;
+  if(r.nameOnly){
+    // 文件名命中（未读内容）：展示文件信息卡
+    $("preview").innerHTML =
+      `<div class="fcard">` +
+      `<div class="fc-t">📄 ${esc(baseName(r.relPath))}</div>` +
+      `<div class="fc-p">${t("fc.pathV", {p: esc(r.absPath || r.relPath)})}</div>` +
+      `<div class="fc-p">${t("fc.metaV", {s: humanSize(r.size), e: esc(r.enc || "?"),
+                        m: new Date(r.mtime).toLocaleString(dateFmt(), {hour12:false})})}</div>` +
+      `<div class="fc-p">${t("fc.nameHit", {n: r.hits})}</div>` +
+      `</div>`;
+    $("preview").scrollTop = 0;
+    return;
+  }
+  const kwsL = parseKeywords($("kw").value.trim());
+  const lower = $("caseS").checked ? kwsL : kwsL.map(k => k.toLowerCase());
+  const regex = $("mode").value === "regex" ? buildRegex($("kw").value.trim(), $("caseS").checked) : null;
+  let html = "";
+  for(const p of r.previews){
+    html += `<div class="pl"><span class="ln">${p.lineno}</span><span>${hl(p.line, lower, regex)}</span></div>`;
+  }
+  if(r.hits > r.previews.length){
+    html += `<div class="more">${t("pv.more", {n: r.hits - r.previews.length})}</div>`;
+  }
+  $("preview").innerHTML = html;
+  $("preview").scrollTop = 0;
+}
+
+function hl(line, kwsL, regex){
+  const spans = hitSpans(line, kwsL, regex);
+  if(spans.length === 0) return esc(line);
+  let out = "", pos = 0;
+  for(const [s,e] of spans){
+    if(s > pos) out += esc(line.slice(pos, s));
+    out += "<mark>" + esc(line.slice(s, e)) + "</mark>";
+    pos = e;
+  }
+  if(pos < line.length) out += esc(line.slice(pos));
+  return out;
+}
+
+/* ================================================================
+   导出 / 复制 / 清空
+   ================================================================ */
+function copyText(text, msg){
+  const done = () => setStatus(msg);
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(done, () => fallbackCopy(text, done));
+  }else{
+    fallbackCopy(text, done);
+  }
+}
+function fallbackCopy(text, done){
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  ta.style.cssText = "position:fixed;opacity:0";
+  document.body.appendChild(ta);
+  ta.select();
+  try{ document.execCommand("copy"); }catch(_){}
+  document.body.removeChild(ta);
+  done();
+}
+
+function copyAllPaths(){
+  if(!results.length){ alert(t("cp.none")); return; }
+  copyText(results.map(r => r.absPath || r.relPath).join("\n"),
+           t("cp.all", {n: results.length}));
+}
+
+function copySelPath(){
+  const r = results[activeIdx];
+  if(!r) return;
+  copyText(r.absPath || r.relPath, t("cp.one", {p: esc(r.absPath || r.relPath).replace(/&amp;/g,"&")}));
+}
+
+/* ================================================================
+   桌面版专属：资源管理器定位 + 另存（仅 TxtSeeker.exe 壳内可用）
+   ================================================================ */
+function pathOf(r){ return r ? (r.absPath || r.relPath) : ""; }
+
+async function openFolder(){
+  const r = results[activeIdx];
+  if(!r){ alert(t("rv.noRow")); return; }
+  if(!r.absPath){ alert(t("rv.noPath")); return; }
+  await API.open_folder(r.absPath);
+}
+
+async function revealFile(){
+  const r = results[activeIdx];
+  if(!r){ alert(t("rv.noRow")); return; }
+  if(!r.absPath){ alert(t("rv.noPath")); return; }
+  await API.reveal_file(r.absPath);
+}
+
+async function _doSave(list){
+  if(!isDesktop()){ await browserSave(list); return; }
+  if(!list.length){ alert(t("sv.empty")); return; }
+  const noPath = list.filter(r => !r.absPath).length;
+  if(noPath){
+    alert(t("sv.skip", {n: noPath}));
+  }
+  const usable = list.filter(r => r.absPath);
+  if(!usable.length) return;
+  const dest = await API.pick_folder();
+  if(!dest) return;
+  setStatus(t("sv.copying"));
+  const r = await API.copy_files(usable.map(x => x.absPath), dest);
+  const lines = [t("sv.done1", {n: r.copied}), r.dest || t("sv.noDest")];
+  if(r.failed && r.failed.length){
+    lines.push("", t("sv.failN", {n: r.failed.length}));
+    r.failed.slice(0, 10).forEach(f => lines.push("  " + f.path + " — " + f.err));
+    if(r.failed.length > 10) lines.push(t("sv.more"));
+  }
+  alert(lines.join("\n"));
+  setStatus(t("sv.doneStatus", {n: r.copied, d: r.dest}));
+}
+
+/* ---------- v1.3.1：在线版（纯浏览器）逐份另存 ---------- */
+async function browserSave(list){
+  if(!list.length){ alert(t("sv.empty")); return; }
+  const files = list.filter(r => r.file);
+  if(!files.length){ alert(t("sv.browserNoFile")); return; }
+  setStatus(t("sv.browserSaving", {n: files.length}));
+  let done = 0;
+  for(const r of files){
+    try{
+      const url = URL.createObjectURL(r.file);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = baseName(r.relPath) || "file.txt";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 30000);
+    }catch(_){}
+    done++;
+    setStatus(t("sv.browserProgress", {d: done, n: files.length}));
+    await sleep(150);            // 错峰触发，降低被浏览器拦截的概率
+  }
+  setStatus(t("sv.browserDone", {n: files.length}));
+  alert(t("sv.browserDone", {n: files.length}));
+}
+
+function saveSelected(){
+  const sel = results.filter(r => r.checked);
+  if(!sel.length){ alert(t("sv.needSel")); return; }
+  _doSave(sel);
+}
+
+function saveAll(){
+  if(!results.length){ alert(t("sv.noResults")); return; }
+  _doSave(results.slice());
+}
+
+/* ---------- v1.2：用默认程序打开选中文件 ---------- */
+async function openSelFile(){
+  const r = results[activeIdx] || results.find(x => x.checked);
+  if(!r){ alert(t("of.noSel")); return; }
+  if(!isDesktop()){
+    if(!r.file){ alert(t("of.browserNoFile")); return; }
+    const url = URL.createObjectURL(r.file);
+    const w = window.open(url, "_blank");
+    if(!w) alert(t("of.fail", {p: r.relPath}));
+    else setStatus(t("of.browserOpened", {n: esc(baseName(r.relPath))}));
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    return;
+  }
+  if(!r.absPath){
+    alert(t("of.noPath"));
+    return;
+  }
+  const ok = await API.open_file(r.absPath);
+  if(!ok) alert(t("of.fail", {p: r.absPath || r.relPath}));
+  else setStatus(t("of.done", {n: esc(baseName(r.relPath))}));
+}
+
+/* ---------- v1.2：导出命中内容摘录（.md） ---------- */
+async function exportExcerpt(){
+  if(!results.length){ alert(t("ex.none")); return; }
+  const md = buildExcerpt();
+  const name = t("ex.name", {d: new Date().toISOString().slice(0,10)});
+  if(isDesktop()){
+    const p = await API.save_text(md, name);
+    if(p){
+      setStatus(t("ex.saved", {p: esc(p)}));
+      alert(t("ex.savedAlert", {p}));
+    }else{
+      setStatus(t("ex.cancel"));
+    }
+    return;
+  }
+  const blob = new Blob([md], {type:"text/markdown;charset=utf-8"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  setStatus(t("ex.download"));
+}
+
+function buildExcerpt(){
+  const L = [];
+  const modeTxt = $("mode").value === "regex" ? t("ex.modeRegex") : $("mode").value;
+  const scopeTxt = t("scope." + $("scope").value);
+  L.push(t("ex.title"), "");
+  L.push(t("ex.dir") + ($("dirPath").value || t("dir.dragged", {n: files.length})));
+  const lp = LANG.cur === "zh" ? "（" : " (";
+  const rp = LANG.cur === "zh" ? "）" : ")";
+  L.push(t("ex.kw") + $("kw").value.trim() + lp + modeTxt +
+         ($("caseS").checked ? t("ex.case") : "") + t("ex.scope") + scopeTxt + rp);
+  L.push(t("ex.meta", {n: results.length,
+                       d: new Date().toLocaleString(dateFmt(), {hour12:false})}), "");
+  results.forEach((r, i) => {
+    L.push(t("ex.fileH", {i: i + 1, n: baseName(r.relPath)}), "");
+    L.push(t("ex.path") + "`" + (r.absPath || r.relPath) + "`");
+    L.push((r.nameOnly ? t("ex.hitsName", {n: r.hits}) : t("ex.hits", {n: r.hits})) +
+           t("ex.encSize", {e: r.enc || "?", s: humanSize(r.size)}), "");
+    if(r.nameOnly || !r.previews.length){
+      L.push(t("ex.noPreview"), "");
+      return;
+    }
+    L.push("```");
+    for(const p of r.previews){
+      L.push(String(p.lineno).padStart(4, " ") + " | " + p.line);
+    }
+    L.push("```", "");
+  });
+  return L.join("\r\n");
+}
+
+/* 桌面版本地 API：壳的 http 服务提供 /api/*（同源 fetch）。
+   纯浏览器版这些路由不存在（404 / fetch 失败），探测自动失败 → 走浏览器版行为 */
+const H = {
+  async info(){
+    const r = await fetch("/api/info", {cache:"no-store"});
+    return r.ok ? await r.json() : null;
+  },
+  async pick_folder(){
+    const r = await fetch("/api/pick_folder", {cache:"no-store"});
+    if(!r.ok) return null;
+    const j = await r.json();
+    return j.path || null;
+  },
+  async list_files(root, exts, sub){
+    const q = new URLSearchParams({root, exts: exts.join(","), sub: sub ? "1" : "0"});
+    const r = await fetch("/api/list_files?" + q, {cache:"no-store"});
+    return r.ok ? await r.json() : [];
+  },
+  async read_text(p){
+    const r = await fetch("/api/read_text", {method:"POST", body:p});
+    return r.ok ? await r.text() : null;
+  },
+  async open_folder(p){
+    const r = await fetch("/api/open_folder?path=" + encodeURIComponent(p));
+    return r.ok ? (await r.json()).ok : false;
+  },
+  async open_file(p){
+    const r = await fetch("/api/open_file?path=" + encodeURIComponent(p));
+    return r.ok ? (await r.json()).ok : false;
+  },
+  async recent_dirs(){
+    const r = await fetch("/api/recent_dirs", {cache:"no-store"});
+    return r.ok ? ((await r.json()).dirs || []) : [];
+  },
+  async lang(){
+    const r = await fetch("/api/lang", {cache:"no-store"});
+    return r.ok ? ((await r.json()).lang || "") : "";
+  },
+  async save_text(content, name){
+    const r = await fetch("/api/save_text", {
+      method: "POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({content, name}),
+    });
+    return r.ok ? (await r.json()).path : null;
+  },
+  async reveal(p){
+    const r = await fetch("/api/reveal?path=" + encodeURIComponent(p));
+    return r.ok ? (await r.json()).ok : false;
+  },
+  async copy_files(paths, dest){
+    const r = await fetch("/api/copy_files", {
+      method:"POST",
+      headers:{"Content-Type": "application/json"},
+      body: JSON.stringify({paths, dest}),
+    });
+    if(!r.ok){
+      return {copied: 0, failed: paths.map(p => ({path: p, err: "请求失败"})), dest: null};
+    }
+    return await r.json();
+  },
+};
+
+/* 桌面版探测：壳内 /api/info 返回 desktop 标记；浏览器版探测不到 */
+async function detectDesktop(){
+  for(let i = 0; i < 20; i++){
+    try{
+      const info = await H.info();
+      if(info && info.desktop){
+        API = H;
+        document.body.classList.add("desktop");
+        desktopReady = true;
+        document.title = t("app.title") + t("dt.ready");
+        refreshDropzone();
+        updateDeskHint();
+        beacon("desktop_ok");
+        loadRecentDirs();
+        // 壳里记着的语言优先于浏览器存储（桌面 app 跨重启记忆）
+        try{
+          const srvLang = await H.lang();
+          if(srvLang && I18N[srvLang] && srvLang !== LANG.cur) setLang(srvLang);
+        }catch(_){}
+        return true;
+      }
+    }catch(_){}
+    await sleep(250);
+  }
+  beacon("desktop_fail");
+  restoreLang();   // 浏览器版：探测失败才恢复 localStorage 里的语言记忆（桌面版在上面已 return）
+  return false;
+}
+/* 状态信标：回敲壳的 http 服务，供真机验收读取
+   （页面改 document.title 不会同步到 pywebview 的 OS 窗口标题，只能走这条通道） */
+function beacon(event){
+  try{ fetch("/api/beacon?event=" + encodeURIComponent(event)); }catch(_){}
+}
+initLang();
+applyLang();
+detectDesktop();
+
+function exportResults(){
+  if(!results.length){ alert(t("ex.none")); return; }
+  const scopeTxt = t("scope." + $("scope").value);
+  const lines = [
+    t("er.title"),
+    t("er.dir") + ($("dirPath").value || t("dir.dragged", {n: files.length})),
+    t("er.kw") + $("kw").value.trim() +
+      t("er.mode", {m: $("mode").value, s: scopeTxt}),
+    t("er.hits", {n: results.length}), ""
+  ];
+  for(const r of results) lines.push(t("er.line", {p: r.absPath || r.relPath, n: r.hits,
+                                  x: r.nameOnly ? t("er.lineName") : t("er.lineHits")}));
+  const blob = new Blob([lines.join("\r\n")], {type:"text/plain;charset=utf-8"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = t("er.name", {d: new Date().toISOString().slice(0,10)});
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  setStatus(t("er.done"));
+}
+
+function clearAll(clearDir = true){
+  results = [];
+  activeIdx = -1;
+  renderTable();
+  $("preview").innerHTML = "";
+  $("previewPath").textContent = "";
+  if(clearDir){
+    files = [];
+    $("dirPath").value = "";
+  }
+}
+
+/* ================================================================
+   状态栏 / 菜单 / 对话框
+   ================================================================ */
+function setStatus(html){ $("stLeft").innerHTML = html; }
+
+function toggleMenu(id){
+  document.querySelectorAll(".menu").forEach(m => {
+    if(m.id !== id) m.classList.remove("open");
+  });
+  $(id).classList.toggle("open");
+}
+document.addEventListener("click", e => {
+  if(!e.target.closest(".menu")){
+    document.querySelectorAll(".menu").forEach(m => m.classList.remove("open"));
+  }
+});
+document.addEventListener("keydown", e => {
+  if(e.key === "Escape") stopSearch();
+  if(e.key === "F3" || (e.key === "f" && e.ctrlKey)){ e.preventDefault(); $("kw").focus(); }
+  if(e.key === "a" && e.ctrlKey && !e.altKey){
+    const tag = (e.target.tagName || "").toLowerCase();
+    if(tag === "input" || tag === "textarea") return;   // 输入框内保留原生全选
+    e.preventDefault();
+    if(results.length) $("chkAll").click();
+  }
+});
+$("kw").addEventListener("keydown", e => {
+  if(e.key === "Enter") search();
+});
+
+function showHelp(){
+  alert(
+t("help.title") + "\n\n" +
+[1,2,3,4,5,6,7,8,9,10].map(i => t("help." + i)).join("\n\n") +
+"\n\n" + t("help.keys"));
+}
+
+function showDisclaimer(){
+  alert(
+t("disc.title") + "\n\n" +
+t("disc.1") + "\n\n" +
+t("disc.2") + "\n\n" +
+t("disc.3"));
+}
+
+function showAbout(){
+  alert(
+t("about.title") + "\n" +
+t("about.sub") + "\n\n" +
+t("about.l1") + "\n" +
+t("about.l2") + "\n" +
+t("about.l3") + "\n" +
+t("about.l4") + "\n\n" +
+t("about.copy"));
+}
+</script>
+</body>
+</html>
