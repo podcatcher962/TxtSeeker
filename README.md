@@ -13,7 +13,7 @@
 | --- | --- | --- |
 | 🖥️ **桌面版** | `TxtSeeker.exe`（Windows 单文件，约 17MB） | 日常主力：整目录递归搜索、批量另存、定位文件夹 |
 | 📄 **本地 HTML 版** | `TxtSeeker.html`（单文件，双击即用） | 不想装 exe / 非 Windows 系统（Linux、Android、iOS 均可） |
-| 🌐 **在线版** | GitHub Pages 链接（见仓库首页 About） | 随手用：浏览器打开，把文件拖进去就能搜 |
+| 🌐 **在线版** | <https://podcatcher962.github.io/TxtSeeker/> | 随手用：浏览器打开，把文件拖进去就能搜 |
 
 三种形态共用同一套界面与逻辑；桌面版额外提供「整目录加载 / 批量另存到指定目录 / 打开所在文件夹」等本地能力。
 
@@ -61,7 +61,7 @@
 直接双击 `TxtSeeker.html`，用任意现代浏览器打开即可。
 
 ### 在线版
-打开仓库首页的 GitHub Pages 链接 → 把 TXT 文件拖进虚线框 → 输入关键词搜索 → 「文件 → 另存选中文件…」逐份下载。
+打开 <https://podcatcher962.github.io/TxtSeeker/> →「进入应用」→ 把 TXT 文件拖进虚线框 → 输入关键词搜索 → 「文件 → 另存选中文件…」逐份下载。
 > 浏览器安全模型限制：在线版只能处理「拖入或选择的文件」，无法像桌面版那样扫描整个磁盘目录。
 
 ---
@@ -86,6 +86,7 @@ node _browser_test.mjs    # 19 项：在线版（纯浏览器）保存/打开链
 | --- | --- |
 | `app.py` | pywebview 桌面壳：loopback HTTP + `/api/*` 本地接口、双语壳文案、语言持久化 |
 | `TxtSeeker.html` | 全部界面与逻辑（单文件，桌面版与在线版共用） |
+| `index.html` | 在线版落地页（GitHub Pages 入口） |
 | `test_core.mjs` | Node 测试：搜索内核、双语一致性、i18n 无漏翻 |
 | `_browser_test.mjs` | Node 无头 DOM mock：在线版保存/打开链路 |
 | `_exe_test.py` | 真机验收脚本（对话框枚举、语言探针等 23 项） |
@@ -118,7 +119,7 @@ node _browser_test.mjs    # 19 项：在线版（纯浏览器）保存/打开链
 | --- | --- | --- |
 | 🖥️ **Desktop app** | `TxtSeeker.exe` (Windows, single file, ~17MB) | Daily driver: whole-folder recursive scan, batch export, reveal in Explorer |
 | 📄 **Local HTML** | `TxtSeeker.html` (single file) | No exe wanted / Linux, Android, iOS |
-| 🌐 **Online** | GitHub Pages link (see repo homepage) | Quick use: drop files into the browser |
+| 🌐 **Online** | <https://podcatcher962.github.io/TxtSeeker/> | Quick use: drop files into the browser |
 
 All three share the same UI and engine; the desktop build adds whole-folder loading, batch copy to a destination folder, and "open containing folder".
 
@@ -143,7 +144,7 @@ The desktop app talks to its embedded page over `127.0.0.1` loopback only — **
 ### Quick start
 1. **Desktop**: run `TxtSeeker.exe` → "Open Folder…" (or drag & drop) → type keywords → Search → check rows → "Save Selected Files…"
 2. **Local HTML**: double-click `TxtSeeker.html`
-3. **Online**: open the Pages link → drop TXT files in → search → File → "Save Selected Files…" to download one by one
+3. **Online**: open <https://podcatcher962.github.io/TxtSeeker/> → "Enter App" → drop TXT files in → search → File → "Save Selected Files…" to download one by one
    *(Browsers can't scan disk folders — the online build only sees files you drop or pick.)*
 
 ### Build from source
