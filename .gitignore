@@ -1,0 +1,17 @@
+# 构建产物（本地留存，不进仓库）
+dist_*/
+_pkg/
+build/
+__pycache__/
+*.exe
+*.pyc
+
+# 自测/验收过程文件
+_st_*.json
+selftest_*.json
+_st_*/
+
+# 系统垃圾
+Thumbs.db
+desktop.ini
+.DS_Store
